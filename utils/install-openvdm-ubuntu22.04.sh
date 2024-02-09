@@ -807,14 +807,14 @@ function restore_openvdm_db {
     # Function to display menu and prompt user for selection
     select_sql_file() {
         #local files=("$sql_directory"/*.sql)
-	local sql_files=$(find "$sql_directory" -type f -name "*.sql")
+	    local sql_files=$(find "$sql_directory" -type f -name "*.sql")
         local selected_file
 
-	# Check if SQL files are found
-	if [ -z "$sql_files" ]; then
-	    echo "No backup files found in $sql_directory"
-	    return
-	fi
+	    # Check if SQL files are found
+	    if [ -z "$sql_files" ]; then
+	        echo "No backup files found in $sql_directory"
+	        return
+	    fi
 
         echo "Select SQL file to restore:"
         select filename in $sql_files "Cancel"; do
@@ -852,8 +852,8 @@ function restore_openvdm_db {
 	cat $sql_file > $temp_file
 	
 	for table in "${excluded_tables[@]}"; do
-        sed -e "/DROP TABLE IF EXISTS \`${table}\`/,/;/d" \
-	    -e "/CREATE TABLE \`${table}\`/,/;/d" \
+        sed -e "/DROP TABLE IF EXISTS \`${table}\`/;/d" \
+	        -e "/CREATE TABLE \`${table}\`/,/;/d" \
             -e "/ALTER TABLE \`${table}\`/,/;/d" \
             -e "/INSERT INTO \`${table}\`/,/;/d" \
             -e "/LOCK TABLES \`${table}\`/,/;/d" \
