@@ -3,14 +3,14 @@
 # OpenVDM is available as open source under the MIT License at
 #   https:/github.com/oceandatatools/openvdm
 #
-# This script installs and configures OpenVDM to run on Ubuntu 20.04.  It
+# This script installs and configures OpenVDM to run on Ubuntu 22.04.  It
 # is designed to be run as root. It should take a (relatively) clean
-# Ubuntu 20.04 installation and install and configure all the components
+# Ubuntu 22.04 installation and install and configure all the components
 # to run the full OpenVDM system.
 #
 # It should be re-run whenever the code has been refresh. Preferably
 # by first running 'git pull' to get the latest copy of the script,
-# and then running 'utils/build_openvdm_ubuntu20.04.sh' to run that
+# and then running 'utils/build_openvdm_ubuntu22.04.sh' to run that
 # script.
 #
 # The script has been designed to be idempotent, that is, if can be
@@ -167,6 +167,8 @@ function create_user {
 # Install and configure required packages
 function install_packages {
 
+    startingDir=${PWD}
+
     apt-get update -qq
 
     apt-get install -q -y software-properties-common ca-certificates curl gnupg
@@ -174,16 +176,8 @@ function install_packages {
     LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
     LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/apache2
 
-    # mkdir -p /etc/apt/keyrings
-    # curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-    # echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_16.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
-
-    # curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh
-    # bash /tmp/nodesource_setup.sh
-
-
     # Install nodejs v20.11.0 LTS
-    cd
+    cd ~
     wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
     export NVM_DIR="$HOME/.nvm"
     [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
@@ -211,8 +205,6 @@ function install_packages {
     fi
     
     npm install --quiet -g bower
-
-    startingDir=${PWD}
 
     cd ~
     curl -sS https://getcomposer.org/installer | php
