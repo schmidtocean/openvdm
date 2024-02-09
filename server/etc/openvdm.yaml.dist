@@ -26,11 +26,11 @@ gearmanServer: "localhost:4730"
 
 # Whether or not to hide all directories in the CruiseData directory other than the
 # current cruise. (True|False))
-showOnlyCurrentCruiseDir: False
+showOnlyCurrentCruiseDir: True
 
 # Whether or not to move the contents of the PublicData share to the cruise data
 # directory. (True|False))
-transferPubicData: True
+transferPubicData: False
 
 # The plugins section defines where the plugins processing scripts reside
 # and the expected suffix for each processing file.  It should include 2 directives:
@@ -79,37 +79,45 @@ postHookCommands:
         #    - /opt/openvdm/bin/r2r_nav_manager.py
         #    - SCS
     postDataDashboard:
-        #- collectionSystemTransferName: OpenRVDAS
-        #  commandList:
-        #  - name: "Build cruise tracks"
-        #    command:
-        #    - /opt/openvdm/venv/bin/python
-        #    - /opt/openvdm/bin/build_cruise_tracks.py
-        #    - OpenRVDAS
+        - collectionSystemTransferName: OpenRVDAS
+          commandList:
+          - name: "Build cruise tracks"
+            command:
+            - /opt/openvdm/venv/bin/python
+            - /opt/openvdm/bin/build_cruise_tracks.py
+            - OpenRVDAS
     postSetupNewCruise:
-        #commandList:
-        #- name: "Setup Remote Cruise Directories"
-        #  command:
-        #  - /opt/openvdm/venv/bin/python
-        #  - /opt/openvdm/bin/build_remote_directory.py
-        #  - "-s"
+        commandList:
+        # - name: "Setup Remote Cruise Directories"
+        #   command:
+        #   - /opt/openvdm/venv/bin/python
+        #   - /opt/openvdm/bin/build_remote_directory.py
+        #   - "-s"
+        - name: "Build new OpenRVDAS config file"
+          command:
+          - bash 
+          - /opt/openvdm/bin/build_openrvdas_logger_config.sh
+        # - name: "Add Cruise record to Sealog"
+        #   command:
+        #   - bash 
+        #   - /home/mt/shipboard-configurations/Systems/OpenVDM/bin/build_openrvdas_logger_config.sh
     postSetupNewLowering:
-        #commandList:
-        #- name: "Setup Remote Lowering Directories"
-        #  command:
-        #  - /opt/openvdm/venv/bin/python
-        #  - /opt/openvdm/bin/build_remote_directory.py
-        #  - "-s"
-        #  - "-l"
+        # commandList:
+        # - name: "Setup Remote Lowering Directories"
+        #   command:
+        #   - /opt/openvdm/venv/bin/python
+        #   - /opt/openvdm/bin/build_remote_directory.py
+        #   - "-s"
+        #   - "-l"
     postFinalizeCurrentCruise:
-        #commandList:
-        #- name: "Export Sealog Vessel Data"
-        #  command:
-        #  - /opt/sealog-server-vessel/venv/bin/python
-        #  - /opt/sealog-server-vessel/misc/sealog_vessel_data_export.py
+        commandList:
+        - name: "Export Sealog Data"
+          command:
+          - /opt/openvdm/venv/bin/python
+          - /opt/openvdm/bin/sealog_post_cruise_export.py 
     postFinalizeCurrentLowering:
-        #commandList:
-        #- name: "Export Sealog Vessel Data"
-        #  command:
-        #  - /opt/sealog-server-vehicle/venv/bin/python
-        #  - /opt/sealog-server-vehicle/misc/sealog_vehicle_data_export.py
+        commandList:
+        - name: "Export Sealog Sub Data"
+          command:
+          - /opt/openvdm/venv/bin/python
+          - /opt/openvdm/bin/sealog_post_dive_export.py
