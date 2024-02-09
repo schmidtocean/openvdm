@@ -73,21 +73,21 @@ function set_default_variables {
     DEFAULT_HOSTNAME=$HOSTNAME
     DEFAULT_INSTALL_ROOT=/opt
 
-    DEFAULT_DATA_ROOT=/vault
+    DEFAULT_DATA_ROOT=/data
 
-    DEFAULT_OPENVDM_REPO=https://github.com/oceandatatools/openvdm
-    DEFAULT_OPENVDM_BRANCH=master
-    DEFAULT_OPENVDM_SITEROOT=127.0.0.1
+    DEFAULT_OPENVDM_REPO=https://github.com/schmidtocean/openvdm
+    DEFAULT_OPENVDM_BRANCH=master-FKt
+    DEFAULT_OPENVDM_SITEROOT=10.23.9.20
 
-    DEFAULT_OPENVDM_USER=survey
+    DEFAULT_OPENVDM_USER=mt
     
     DEFAULT_INSTALL_MAPPROXY=no
 
     DEFAULT_INSTALL_PUBLICDATA=yes
     DEFAULT_INSTALL_VISITORINFORMATION=no
 
-    DEFAULT_SUPERVISORD_WEBINTERFACE=no
-    DEFAULT_SUPERVISORD_WEBINTERFACE_AUTH=no
+    DEFAULT_SUPERVISORD_WEBINTERFACE=yes
+    DEFAULT_SUPERVISORD_WEBINTERFACE_AUTH=yes
 
     # Read in the preferences file, if it exists, to overwrite the defaults.
     if [ -e $PREFERENCES_FILE ]; then
@@ -103,7 +103,7 @@ function set_default_variables {
 # Save defaults in a preferences file for the next time we run.
 function save_default_variables {
     cat > $PREFERENCES_FILE <<EOF
-# Defaults written by/to be read by install_openvdm_ubuntu20.04.sh
+# Defaults written by/to be read by install_openvdm_ubuntu22.04.sh
 
 DEFAULT_HOSTNAME=$HOSTNAME
 DEFAULT_INSTALL_ROOT=$INSTALL_ROOT
@@ -174,21 +174,29 @@ function install_packages {
     LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/php
     LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/apache2
 
-    mkdir -p /etc/apt/keyrings
-    curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
-    echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_16.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
+    # mkdir -p /etc/apt/keyrings
+    # curl -fsSL https://deb.nodesource.com/gpgkey/nodesource-repo.gpg.key | gpg --dearmor -o /etc/apt/keyrings/nodesource.gpg
+    # echo "deb [signed-by=/etc/apt/keyrings/nodesource.gpg] https://deb.nodesource.com/node_16.x nodistro main" | tee /etc/apt/sources.list.d/nodesource.list
 
     # curl -sL https://deb.nodesource.com/setup_16.x -o /tmp/nodesource_setup.sh
     # bash /tmp/nodesource_setup.sh
 
+
+    # Install nodejs v20.11.0 LTS
+    cd
+    wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+    nvm install --lts
+    sudo ln -s /root/.nvm/versions/node/v20.11.0/bin/npm /usr/local/bin/
+    sudo ln -s /root/.nvm/versions/node/v20.11.0/bin/node /usr/local/bin/
+
     apt-get update -qq
 
     apt install -q -y openssh-server sshpass rsync git samba smbclient \
-        cifs-utils gearman-job-server libgearman-dev nodejs python3 \
-        python3-dev python3-pip python3-venv supervisor mysql-server \
-        mysql-client ntp apache2 libapache2-mod-wsgi-py3 php7.3 \
-        libapache2-mod-php7.3 php7.3-cli php7.3-mysql php7.3-zip php7.3-curl \
-        php7.3-gearman php7.3-yaml
+        cifs-utils gearman-job-server libgearman-dev python3 mysql-client \
+        python3-dev python3-pip python3-venv supervisor mysql-server ntp\
+        apache2 libapache2-mod-wsgi-py3 php7.3 libapache2-mod-php7.3 \
+        php7.3-cli php7.3-mysql php7.3-zip php7.3-curl php7.3-gearman \
+        php7.3-yaml
 
     if [ $INSTALL_MAPPROXY == 'yes' ]; then
     
@@ -352,7 +360,7 @@ stopsignal=INT
 command=${VENV_BIN}/python server/workers/run_collection_system_transfer.py
 directory=${INSTALL_ROOT}/openvdm
 process_name=%(program_name)s_%(process_num)s
-numprocs=2
+numprocs=8
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/run_collection_system_transfer.log
 user=root
@@ -364,7 +372,7 @@ stopsignal=INT
 command=${VENV_BIN}/python server/workers/run_cruise_data_transfer.py
 directory=${INSTALL_ROOT}/openvdm
 process_name=%(program_name)s_%(process_num)s
-numprocs=2
+numprocs=4
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/run_cruise_data_transfer.log
 user=root
