@@ -571,8 +571,8 @@ function configure_apache {
     </Directory>
 EOF
 
-if [ $INSTALL_MAPPROXY == 'yes' ]; then
-    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    if [ $INSTALL_MAPPROXY == 'yes' ]; then
+        cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     WSGIScriptAlias /mapproxy /var/www/mapproxy/config.py
 
@@ -581,9 +581,9 @@ if [ $INSTALL_MAPPROXY == 'yes' ]; then
       Allow from all
     </Directory>
 EOF
-fi
+    fi
 
-cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     Alias /CruiseData/ $DATA_ROOT/CruiseData/
     <Directory "$DATA_ROOT/CruiseData">
@@ -595,8 +595,8 @@ cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
     </Directory>
 EOF
 
-if [ $INSTALL_PUBLICDATA == 'yes' ]; then
-    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    if [ $INSTALL_PUBLICDATA == 'yes' ]; then
+        cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     Alias /PublicData/ $DATA_ROOT/PublicData/
     <Directory "$DATA_ROOT/PublicData">
@@ -607,10 +607,10 @@ if [ $INSTALL_PUBLICDATA == 'yes' ]; then
       Require all granted
     </Directory>
 EOF
-fi
+    fi
 
-if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
-    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
+        cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     Alias /VisitorInformation/ $DATA_ROOT/VisitorInformation/
     <Directory "$DATA_ROOT/VisitorInformation">
@@ -621,9 +621,9 @@ if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
       Require all granted
     </Directory>
 EOF
-fi
+    fi
 
-cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
 </VirtualHost>
 EOF
@@ -777,14 +777,6 @@ EOF
     [ ! -z $CURRENT_ROOT_DATABASE_PASSWORD ] || mysql -u root < /tmp/set_pwd
     rm -f /tmp/set_pwd
 
-    # Now do the rest of the 'mysql_safe_installation' stuff
-#     mysql -u root -p$NEW_ROOT_DATABASE_PASSWORD <<EOF
-# DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
-# DELETE FROM mysql.user WHERE User='';
-# DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';
-# FLUSH PRIVILEGES;
-# EOF
-
     # Start mysql to start up as a service
     update-rc.d mysql defaults
 
@@ -807,14 +799,14 @@ function restore_openvdm_db {
     # Function to display menu and prompt user for selection
     select_sql_file() {
         #local files=("$sql_directory"/*.sql)
-	    local sql_files=$(find "$sql_directory" -type f -name "*.sql")
+        local sql_files=$(find "$sql_directory" -type f -name "*.sql")
         local selected_file
 
-	    # Check if SQL files are found
-	    if [ -z "$sql_files" ]; then
-	        echo "No backup files found in $sql_directory"
-	        return
-	    fi
+        # Check if SQL files are found
+        if [ -z "$sql_files" ]; then
+            echo "No backup files found in $sql_directory"
+            return
+        fi
 
         echo "Select SQL file to restore:"
         select filename in $sql_files "Cancel"; do
@@ -835,31 +827,20 @@ function restore_openvdm_db {
         local sql_file="$1"
 
         # Tables to exclude from restoration
-	excluded_tables=("OVDM_CoreVars")
-
-	# read -p "Enter MySQL root password: " -s root_password
-        # echo # For newline after password input
-
-        # # Check if the file exists
-        # if [ ! -f "$sql_file" ]; then
-        #     echo "File not found: $sql_file"
-        #     exit 1
-        # fi
+        excluded_tables=("OVDM_CoreVars")
 
         # Exclude the specific table from the SQL file
         temp_file=$(mktemp)
-	temp2_file=$(mktemp)
-	cat $sql_file > $temp_file
-	
-	for table in "${excluded_tables[@]}"; do
-        sed -e "/DROP TABLE IF EXISTS \`${table}\`;/d" \
-	    -e "/CREATE TABLE \`${table}\`/,/;/d" \
-            -e "/INSERT INTO \`${table}\`/d" \
-            -e "/LOCK TABLES \`${table}\` WRITE;/d" \
-            "$temp_file" > "$temp2_file" && mv "$temp2_file" "$temp_file"
-    	done
-
-	cat $temp_file
+        temp2_file=$(mktemp)
+        cat $sql_file > $temp_file
+    
+        for table in "${excluded_tables[@]}"; do
+            sed -e "/DROP TABLE IF EXISTS \`${table}\`;/d" \
+                -e "/CREATE TABLE \`${table}\`/,/;/d" \
+                -e "/INSERT INTO \`${table}\`/d" \
+                -e "/LOCK TABLES \`${table}\` WRITE;/d" \
+                "$temp_file" > "$temp2_file" && mv "$temp2_file" "$temp_file"
+        done
 
         # Restore the database
         mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$temp_file"
@@ -973,7 +954,7 @@ function install_openvdm {
             cd ..
             rm -rf openvdm
             git clone -q -b $OPENVDM_BRANCH $OPENVDM_REPO ./openvdm
-	    chown -R ${OPENVDM_USER}:${OPENVDM_USER} ./openvdm
+        chown -R ${OPENVDM_USER}:${OPENVDM_USER} ./openvdm
         fi
     fi
 
@@ -1002,7 +983,7 @@ EOF
         fi
 
         hashed_password=$(php -r "echo password_hash('${OPENVDM_DATABASE_PASSWORD}', PASSWORD_DEFAULT);")
-	cat >> ${INSTALL_ROOT}/openvdm/database/openvdm_db_custom.sql <<EOF 
+    cat >> ${INSTALL_ROOT}/openvdm/database/openvdm_db_custom.sql <<EOF 
 
 INSERT INTO OVDM_Users (username, password)
 VALUES ('${OPENVDM_USER}', '${hashed_password}');
@@ -1089,7 +1070,6 @@ echo "#####################################################################"
 read -p "Name to assign to host ($DEFAULT_HOSTNAME)? " HOSTNAME
 HOSTNAME=${HOSTNAME:-$DEFAULT_HOSTNAME}
 echo "Hostname will be '$HOSTNAME'"
-# Set hostname
 set_hostname $HOSTNAME
 echo
 
