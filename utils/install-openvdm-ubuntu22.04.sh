@@ -802,7 +802,7 @@ EOF
 function restore_openvdm_db {
 
     # Directory containing SQL files
-    sql_directory="$install_dir/database/backups"
+    sql_directory="${INSTALL_ROOT}/database/backups"
 
     # Function to display menu and prompt user for selection
     select_sql_file() {
