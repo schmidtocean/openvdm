@@ -831,8 +831,12 @@ function restore_openvdm_db {
             exit 1
         fi
 
+        # Exclude the specific table from the SQL file
+        temp_file=$(mktemp)
+        awk -v table="OVDM_CoreVars" '$1 == "CREATE" && $2 == "TABLE" && $3 == table {f=1} f && /;$/ {f=0} !f' "$sql_file" > "$temp_file"
+
         # Restore the database
-        mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$sql_file"
+        mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$temp_file"
 
         if [ $? -eq 0 ]; then
             echo "Database restored successfully."
