@@ -73,7 +73,7 @@ function set_default_variables {
     DEFAULT_HOSTNAME=$HOSTNAME
     DEFAULT_INSTALL_ROOT=/opt
 
-    DEFAULT_DATA_ROOT=/data
+    DEFAULT_DATA_ROOT=/mnt/soi_data1/vault
 
     DEFAULT_OPENVDM_REPO=https://github.com/schmidtocean/openvdm
     DEFAULT_OPENVDM_BRANCH=master-FKt
@@ -848,15 +848,15 @@ function configure_directories {
     if [ ! -d $DATA_ROOT ]; then
         echo "Creating data directory structure starting at: $DATA_ROOT"
 
-        mkdir -p ${DATA_ROOT}/CruiseData/Test_Cruise/Vehicle/Test_Lowering
-        mkdir -p ${DATA_ROOT}/CruiseData/Test_Cruise/OpenVDM/DashboardData
-        mkdir -p ${DATA_ROOT}/CruiseData/Test_Cruise/OpenVDM/TransferLogs
+        mkdir -p ${DATA_ROOT}/CruiseData/FKt990101/Vehicle/S9999
+        mkdir -p ${DATA_ROOT}/CruiseData/FKt990101/OpenVDM/DashboardData
+        mkdir -p ${DATA_ROOT}/CruiseData/FKt990101/OpenVDM/TransferLogs
 
-        echo "[]" > ${DATA_ROOT}/CruiseData/Test_Cruise/OpenVDM/DashboardData/manifest.json
-        echo "{}" > ${DATA_ROOT}/CruiseData/Test_Cruise/ovdmConfig.json
-        echo "{}" > ${DATA_ROOT}/CruiseData/Test_Cruise/Vehicle/Test_Lowering/loweringConfig.json
-        touch ${DATA_ROOT}/CruiseData/Test_Cruise/MD5_Summary.md5
-        touch ${DATA_ROOT}/CruiseData/Test_Cruise/MD5_Summary.txt
+        echo "[]" > ${DATA_ROOT}/CruiseData/FKt990101/OpenVDM/DashboardData/manifest.json
+        echo "{}" > ${DATA_ROOT}/CruiseData/FKt990101/ovdmConfig.json
+        echo "{}" > ${DATA_ROOT}/CruiseData/FKt990101/Vehicle/S9999/loweringConfig.json
+        touch ${DATA_ROOT}/CruiseData/FKt990101/MD5_Summary.md5
+        touch ${DATA_ROOT}/CruiseData/FKt990101/MD5_Summary.txt
 
         if [ $INSTALL_PUBLICDATA == 'yes' ]; then
             mkdir -p ${DATA_ROOT}/PublicData
