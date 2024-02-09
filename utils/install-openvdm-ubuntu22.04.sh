@@ -177,15 +177,17 @@ function install_packages {
     LC_ALL=C.UTF-8 add-apt-repository -y ppa:ondrej/apache2
 
     # Install nodejs v20.11.0 LTS
-    cd ~
-    wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
-    export NVM_DIR="$HOME/.nvm"
-    [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
-    [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
-    nvm install --lts
+    if [ ! -e "/usr/local/bin/npm" ]; then
+        cd ~
+        wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+        export NVM_DIR="$HOME/.nvm"
+        [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"  # This loads nvm
+        [ -s "$NVM_DIR/bash_completion" ] && \. "$NVM_DIR/bash_completion"  # This loads nvm bash_completion
+        nvm install --lts
 
-    sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/npm /usr/local/bin/
-    sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/node /usr/local/bin/
+        sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/npm /usr/local/bin/
+        sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/node /usr/local/bin/
+    fi
 
     apt-get update -qq
 
@@ -829,8 +831,12 @@ function restore_openvdm_db {
             exit 1
         fi
 
+        # Exclude the specific table from the SQL file
+        temp_file=$(mktemp)
+        awk -v table="OVDM_CoreVars" '$1 == "CREATE" && $2 == "TABLE" && $3 == table {f=1} f && /;$/ {f=0} !f' "$sql_file" > "$temp_file"
+
         # Restore the database
-        mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$sql_file"
+        mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$temp_file"
 
         if [ $? -eq 0 ]; then
             echo "Database restored successfully."
