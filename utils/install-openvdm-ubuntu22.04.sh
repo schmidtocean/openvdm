@@ -73,21 +73,21 @@ function set_default_variables {
     DEFAULT_HOSTNAME=$HOSTNAME
     DEFAULT_INSTALL_ROOT=/opt
 
-    DEFAULT_DATA_ROOT=/vault
+    DEFAULT_DATA_ROOT=/data
 
-    DEFAULT_OPENVDM_REPO=https://github.com/oceandatatools/openvdm
-    DEFAULT_OPENVDM_BRANCH=master
-    DEFAULT_OPENVDM_SITEROOT=127.0.0.1
+    DEFAULT_OPENVDM_REPO=https://github.com/schmidtocean/openvdm
+    DEFAULT_OPENVDM_BRANCH=master-FKt
+    DEFAULT_OPENVDM_SITEROOT=10.23.9.20
 
-    DEFAULT_OPENVDM_USER=survey
+    DEFAULT_OPENVDM_USER=mt
     
     DEFAULT_INSTALL_MAPPROXY=no
 
     DEFAULT_INSTALL_PUBLICDATA=yes
     DEFAULT_INSTALL_VISITORINFORMATION=no
 
-    DEFAULT_SUPERVISORD_WEBINTERFACE=no
-    DEFAULT_SUPERVISORD_WEBINTERFACE_AUTH=no
+    DEFAULT_SUPERVISORD_WEBINTERFACE=yes
+    DEFAULT_SUPERVISORD_WEBINTERFACE_AUTH=yes
 
     # Read in the preferences file, if it exists, to overwrite the defaults.
     if [ -e $PREFERENCES_FILE ]; then
@@ -358,7 +358,7 @@ stopsignal=INT
 command=${VENV_BIN}/python server/workers/run_collection_system_transfer.py
 directory=${INSTALL_ROOT}/openvdm
 process_name=%(program_name)s_%(process_num)s
-numprocs=2
+numprocs=8
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/run_collection_system_transfer.log
 user=root
@@ -370,7 +370,7 @@ stopsignal=INT
 command=${VENV_BIN}/python server/workers/run_cruise_data_transfer.py
 directory=${INSTALL_ROOT}/openvdm
 process_name=%(program_name)s_%(process_num)s
-numprocs=2
+numprocs=4
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/run_cruise_data_transfer.log
 user=root
