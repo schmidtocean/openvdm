@@ -810,10 +810,15 @@ function restore_openvdm_db {
         local selected_file
 
         echo "Select SQL file to restore:"
-        select filename in "${files[@]}"; do
+        select filename in "${files[@]} Cancel"; do
             selected_file="$filename"
             break
         done
+
+        if [ $opt == "Cancel" ];then
+            return
+        fi
+
 
         echo "You selected: $selected_file"
         restore_database "$selected_file"
@@ -821,15 +826,15 @@ function restore_openvdm_db {
 
     # Function to restore MySQL database from selected SQL file
     restore_database() {
-        local sql_file="$1"
-        read -p "Enter MySQL root password: " -s root_password
-        echo # For newline after password input
+        # local sql_file="$1"
+        # read -p "Enter MySQL root password: " -s root_password
+        # echo # For newline after password input
 
-        # Check if the file exists
-        if [ ! -f "$sql_file" ]; then
-            echo "File not found: $sql_file"
-            exit 1
-        fi
+        # # Check if the file exists
+        # if [ ! -f "$sql_file" ]; then
+        #     echo "File not found: $sql_file"
+        #     exit 1
+        # fi
 
         # Exclude the specific table from the SQL file
         temp_file=$(mktemp)
