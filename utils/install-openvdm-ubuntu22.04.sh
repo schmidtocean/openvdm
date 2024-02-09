@@ -806,19 +806,25 @@ function restore_openvdm_db {
 
     # Function to display menu and prompt user for selection
     select_sql_file() {
-        local files=("$sql_directory"/*.sql)
+        #local files=("$sql_directory"/*.sql)
+	local sql_files=$(find "$sql_directory" -type f -name "*.sql")
         local selected_file
 
+	# Check if SQL files are found
+	if [ -z "$sql_files" ]; then
+	    echo "No backup files found in $sql_directory"
+	    return
+	fi
+
         echo "Select SQL file to restore:"
-        select filename in "${files[@]} Cancel"; do
+        select filename in $sql_files "Cancel"; do
             selected_file="$filename"
             break
         done
 
-        if [ $opt == "Cancel" ];then
+        if [ $selected_file == "Cancel" ];then
             return
         fi
-
 
         echo "You selected: $selected_file"
         restore_database "$selected_file"
@@ -826,8 +832,12 @@ function restore_openvdm_db {
 
     # Function to restore MySQL database from selected SQL file
     restore_database() {
-        # local sql_file="$1"
-        # read -p "Enter MySQL root password: " -s root_password
+        local sql_file="$1"
+
+        # Tables to exclude from restoration
+	excluded_tables=("OVDM_CoreVars")
+
+	# read -p "Enter MySQL root password: " -s root_password
         # echo # For newline after password input
 
         # # Check if the file exists
@@ -838,7 +848,19 @@ function restore_openvdm_db {
 
         # Exclude the specific table from the SQL file
         temp_file=$(mktemp)
-        awk -v table="OVDM_CoreVars" '$1 == "CREATE" && $2 == "TABLE" && $3 == table {f=1} f && /;$/ {f=0} !f' "$sql_file" > "$temp_file"
+	temp2_file=$(mktemp)
+	cat $sql_file > $temp_file
+	
+	for table in "${excluded_tables[@]}"; do
+        sed -e "/DROP TABLE IF EXISTS \`${table}\`/,/;/d" \
+	    -e "/CREATE TABLE \`${table}\`/,/;/d" \
+            -e "/ALTER TABLE \`${table}\`/,/;/d" \
+            -e "/INSERT INTO \`${table}\`/,/;/d" \
+            -e "/LOCK TABLES \`${table}\`/,/;/d" \
+            "$temp_file" > "$temp2_file" && mv "$temp2_file" "$temp_file"
+    	done
+
+	cat $temp_file
 
         # Restore the database
         mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$temp_file"
