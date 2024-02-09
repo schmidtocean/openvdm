@@ -799,6 +799,52 @@ EOF
 }
 
 
+function restore_openvdm_db {
+
+    # Directory containing SQL files
+    sql_directory="$install_dir/database/backups"
+
+    # Function to display menu and prompt user for selection
+    select_sql_file() {
+        local files=("$sql_directory"/*.sql)
+        local selected_file
+
+        echo "Select SQL file to restore:"
+        select filename in "${files[@]}"; do
+            selected_file="$filename"
+            break
+        done
+
+        echo "You selected: $selected_file"
+        restore_database "$selected_file"
+    }
+
+    # Function to restore MySQL database from selected SQL file
+    restore_database() {
+        local sql_file="$1"
+        read -p "Enter MySQL root password: " -s root_password
+        echo # For newline after password input
+
+        # Check if the file exists
+        if [ ! -f "$sql_file" ]; then
+            echo "File not found: $sql_file"
+            exit 1
+        fi
+
+        # Restore the database
+        mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$sql_file"
+
+        if [ $? -eq 0 ]; then
+            echo "Database restored successfully."
+        else
+            echo "Database restore failed."
+        fi
+    }
+
+    select_sql_file
+}
+
+
 function configure_directories {
 
     if [ ! -d $DATA_ROOT ]; then
@@ -1191,6 +1237,11 @@ echo
 echo "#####################################################################"
 echo "Installing/Configuring OpenVDM"
 install_openvdm
+echo
+
+echo "#####################################################################"
+echo "Restore OpenVDM DB from backup"
+restore_openvdm_db
 echo
 
 echo "#####################################################################"
