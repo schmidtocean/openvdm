@@ -188,6 +188,7 @@ function install_packages {
     nvm install --lts
     sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/npm /usr/local/bin/
     sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/node /usr/local/bin/
+    export NVM_DIR="$HOME/.nvm"
 
     apt-get update -qq
 
