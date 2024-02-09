@@ -186,8 +186,8 @@ function install_packages {
     cd
     wget -qO- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
     nvm install --lts
-    sudo ln -s /root/.nvm/versions/node/v20.11.0/bin/npm /usr/local/bin/
-    sudo ln -s /root/.nvm/versions/node/v20.11.0/bin/node /usr/local/bin/
+    sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/npm /usr/local/bin/
+    sudo ln -s $HOME/.nvm/versions/node/v20.11.0/bin/node /usr/local/bin/
 
     apt-get update -qq
 
