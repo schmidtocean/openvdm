@@ -13,6 +13,7 @@ OPTIONAL ARGUMENTS:
     -s, --create_source      create the source directory
     -t, --template directory the directory structure to create on the remote
                              server
+    -c, --collection_system  connection system to build directories for 
 
 DESCRIPTION:
     This script is designed to be called from the postSetupNewCruise hook to
