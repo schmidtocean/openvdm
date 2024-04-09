@@ -97,9 +97,9 @@ class FluoroParser(OpenVDMCSVParser):
                         nu = None
                         
                         if self.chlorophyll_signal:
-                            _,_,nu,_,_ = line['data'].split('\t')
+                            _,_,_,nu,_,_ = line['data'].split('\t')
                         else:
-                            _,nu,_,_ = line['data'].split('\t')
+                            _,_,nu,_,_ = line['data'].split('\t')
 
                     except Exception as err:
                         errors.append(lineno)

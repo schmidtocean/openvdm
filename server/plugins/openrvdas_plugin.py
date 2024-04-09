@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 """
+
 FILE:  openrvdas_plugin.py
 
 USAGE:  openrvdas_plugin.py [-h] [--dataType] <dataFile>
@@ -21,9 +22,9 @@ REQUIREMENTS:  Python3.8
      BUGS:
     NOTES:
    AUTHOR:  Webb Pinner
-  VERSION:  2.9
+  VERSION:  1.0
   CREATED:  2016-10-23
- REVISION:  2022-07-24
+ REVISION:  2021-02-13
 """
 
 import sys
@@ -40,7 +41,7 @@ from server.lib.openvdm_plugin import OpenVDMPlugin
 from server.plugins.parsers.dbs_parser       import DBSParser
 from server.plugins.parsers.dpt_parser       import DPTParser
 # from server.plugins.parsers.flowrate_parser  import FlowrateParser
-# from server.plugins.parsers.fluoro_parser    import FluoroParser
+from server.plugins.parsers.fluoro_parser    import FluoroParser
 from server.plugins.parsers.gga_parser       import GGAParser
 # from server.plugins.parsers.ggk_parser       import GGKParser
 # from server.plugins.parsers.gll_parser       import GLLParser
@@ -48,7 +49,7 @@ from server.plugins.parsers.gga_parser       import GGAParser
 from server.plugins.parsers.hdt_parser       import HDTParser
 from server.plugins.parsers.metpakpro_parser import MetPakProParser
 from server.plugins.parsers.minisvs_parser   import MiniSVSParser
-# from server.plugins.parsers.mwd_parser       import MWDParser
+from server.plugins.parsers.mwd_parser       import MWDParser
 # from server.plugins.parsers.par2_parser      import PARParser as RADParser
 # from server.plugins.parsers.par_parser       import PARParser
 from server.plugins.parsers.pashr_parser     import PashrParser
@@ -71,22 +72,24 @@ fileTypeFilters = [
     {"data_type":"ea440-dbs",        "regex": "*/" + cruiseID + "_ea440_dbs-*.txt",       "parser": "DBS",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"ea440-dpt",        "regex": "*/" + cruiseID + "_ea440_dpt-*.txt",       "parser": "DPT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"ea640-dbs",        "regex": "*/" + cruiseID + "_ea640_dbs-*.txt",       "parser": "DBS",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"ek80-dbs",         "regex": "*/" + cruiseID + "_ek80_dbs-*.txt",        "parser": "DBS",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"ea640-dpt",        "regex": "*/" + cruiseID + "_ea640_dpt-*.txt",       "parser": "DPT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"em124-dpt",        "regex": "*/" + cruiseID + "_em124_dpt-*.txt",       "parser": "DPT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"em2040-dpt",       "regex": "*/" + cruiseID + "_em2040_dpt-*.txt",      "parser": "DPT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"em712-dpt",        "regex": "*/" + cruiseID + "_em712_dpt-*.txt",       "parser": "DPT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"flowrate-aft",     "regex": "*/" + cruiseID + "_flowrate_aft-*.txt",    "parser": "Flowrate",  'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"flowrate-fwd",     "regex": "*/" + cruiseID + "_flowrate_fwd-*.txt",    "parser": "Flowrate",  'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"fluorometer",      "regex": "*/" + cruiseID + "_fluorometer-*.txt",     "parser": "Fluoro",    'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    {"data_type":"gyro1-hdt",        "regex": "*/" + cruiseID + "_gyro_1_hdt-*.txt",     "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"fluoro_1",         "regex": "*/" + cruiseID + "_fluorometer_1-*.txt",   "parser": "Fluoro",    'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"fluoro_2",         "regex": "*/" + cruiseID + "_fluorometer_2-*.txt",   "parser": "Fluoro",    'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"gyro1-hdt",        "regex": "*/" + cruiseID + "_gyro_1_hdt-*.txt",      "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"gyro1-rot",        "regex": "*/" + cruiseID + "_gyro_1_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    {"data_type":"gyro2-hdt",        "regex": "*/" + cruiseID + "_gyro_2_hdt-*.txt",     "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"gyro2-hdt",        "regex": "*/" + cruiseID + "_gyro_2_hdt-*.txt",      "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"gyro2-rot",        "regex": "*/" + cruiseID + "_gyro_2_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    {"data_type":"gyro3-hdt",        "regex": "*/" + cruiseID + "_gyro_3_hdt-*.txt",     "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"gyro3-hdt",        "regex": "*/" + cruiseID + "_gyro_3_hdt-*.txt",      "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"gyro3-rot",        "regex": "*/" + cruiseID + "_gyro_3_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"minisvs-aft",      "regex": "*/" + cruiseID + "_minisvs_aft-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"minisvs-aft",      "regex": "*/" + cruiseID + "_minisvs_aft-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"minisvs-fwd",      "regex": "*/" + cruiseID + "_minisvs_fwd-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    {"data_type":"mpp-mm-aft",         "regex": "*/" + cruiseID + "_mpp_mm_aft-*.txt",    "parser": "MetPakPro", 'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"mpp-fm-aft",       "regex": "*/" + cruiseID + "_mpp_fm_aft-*.txt",      "parser": "MetPakPro", 'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"par",              "regex": "*/" + cruiseID + "_par-*.txt",             "parser": "PAR",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"posmv-gga",        "regex": "*/" + cruiseID + "_posmv_gga-*.txt",       "parser": "GGA",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"posmv-ggk",        "regex": "*/" + cruiseID + "_posmv_ggk-*.txt",       "parser": "GGK",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
@@ -96,16 +99,16 @@ fileTypeFilters = [
     {"data_type":"posmv-pashr",      "regex": "*/" + cruiseID + "_posmv_pashr-*.txt",     "parser": "Pashr",     'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"posmv-rmc",        "regex": "*/" + cruiseID + "_posmv_rmc-*.txt",       "parser": "RMC",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"posmv-vtg",        "regex": "*/" + cruiseID + "_posmv_vtg-*.txt",       "parser": "VTG",       'parser_options':{'skip_header':True,'use_openvdm_api':True,'no_mag':True}},
-    # {"data_type":"rad",              "regex": "*/" + cruiseID + "_rad-*.txt",             "parser": "RAD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"seapath-gga",      "regex": "*/" + cruiseID + "_seapath_gga-*.txt",     "parser": "GGA",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"seapath-hdt",      "regex": "*/" + cruiseID + "_seapath_hdt-*.txt",     "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"seapath-prdid",    "regex": "*/" + cruiseID + "_seapath_prdid-*.txt",   "parser": "PRDID",     'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"seapath-rmc",      "regex": "*/" + cruiseID + "_seapath_rmc-*.txt",     "parser": "RMC",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"seapath-rot",      "regex": "*/" + cruiseID + "_seapath_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"seapath-vtg",      "regex": "*/" + cruiseID + "_seapath_vtg-*.txt",     "parser": "VTG",       'parser_options':{'skip_header':True,'use_openvdm_api':True,'no_mag':True}},
+    {"data_type":"rad-fm-stb",       "regex": "*/" + cruiseID + "_rad_fm_stb-*.txt",      "parser": "RAD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"seapath-gga",      "regex": "*/" + cruiseID + "_seapath330_gga-*.txt",  "parser": "GGA",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"seapath-hdt",      "regex": "*/" + cruiseID + "_seapath330_hdt-*.txt",  "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    # {"data_type":"seapath-prdid",    "regex": "*/" + cruiseID + "_seapath330_prdid-*.txt",   "parser": "PRDID",     'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    # {"data_type":"seapath-rmc",      "regex": "*/" + cruiseID + "_seapath330_rmc-*.txt",     "parser": "RMC",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    # {"data_type":"seapath-rot",      "regex": "*/" + cruiseID + "_seapath330_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"seapath-vtg",      "regex": "*/" + cruiseID + "_seapath330_vtg-*.txt",  "parser": "VTG",       'parser_options':{'skip_header':True,'use_openvdm_api':True,'no_mag':True}},
     {"data_type":"tsg45_1",          "regex": "*/" + cruiseID + "_tsg_sbe45_1-*.txt",     "parser": "TSG",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"tsg45_2",          "regex": "*/" + cruiseID + "_tsg_sbe45_2-*.txt",     "parser": "TSG",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    # {"data_type":"truewind-port",    "regex": "*/" + cruiseID + "_truewind_port-*.txt",   "parser": "MWD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"truewind-fm",      "regex": "*/" + cruiseID + "_truewind_fm-*.txt",     "parser": "MWD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"truewind-stbd",    "regex": "*/" + cruiseID + "_truewind_stbd-*.txt",   "parser": "MWD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
 ]
 
@@ -122,7 +125,6 @@ class OpeRVDASPlugin(OpenVDMPlugin):
 
     def __init__(self):
         super().__init__(fileTypeFilters)
-
 
     def get_parser(self, filepath): # pylint: disable=too-many-return-statements
         """
