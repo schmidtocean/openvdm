@@ -279,12 +279,18 @@
   #   dataArray:
   #   - dataType: seawater-system
   #     visType: json
-  # - plotType: chart
-  #   id: fluorometer
-  #   heading: Fluorometer
-  #   dataArray:
-  #   - dataType: fluorometer
-  #     visType: json
+  - plotType: chart
+    id: fluoro_1
+    heading: Fluorometer 1
+    dataArray:
+    - dataType: fluoro_1
+      visType: json
+  - plotType: chart
+    id: fluoro_2
+    heading: Fluorometer 2
+    dataArray:
+    - dataType: fluoro_2
+      visType: json
   - plotType: chart
     id: ea440-dpt
     heading: EA440 - DPT

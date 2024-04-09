@@ -13,11 +13,17 @@ database/openvdm_db_custom.sql
 # server/plugins/*.py
 # server/plugins/parsers/*.py
 # server/etc/openvdm.yaml
+
+bin/build_cruise_tracks.py
+bin/build_remote_directory.py
+bin/preferences.sh
+server/etc/openvdm.yaml
+www/etc/datadashboard.yamlwww/app/Core/Config.php
 www/app/Core/Config.php
 www/app/templates/default/js/chartColors.js
 www/app/templates/default/js/dataDashboardMainCustom.js
 www/bower_components
-# www/etc/datadashboard.yaml
+www/etc/datadashboard.yaml
 www/vendor
 www/.htaccess
 www/composer.lock
