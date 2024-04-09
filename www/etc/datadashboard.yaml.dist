@@ -167,6 +167,8 @@
       visType: geoJSON
     - dataType: posmv-gga
       visType: geoJSON
+    - dataType: seapath-gga
+      visType: geoJSON
     - dataType: geotiff
       visType: tms
   # - plotType: chart
@@ -200,6 +202,12 @@
     - dataType: posmv-hdt
       visType: json
   - plotType: chart
+    id: seapath-hdt
+    heading: Seapath - Heading
+    dataArray:
+    - dataType: seapath-hdt
+      visType: json
+  - plotType: chart
     id: posmv-pashr
     heading: POS/MV - Heading, Pitch, Roll, Heave
     dataArray:
@@ -217,6 +225,12 @@
     dataArray:
     - dataType: posmv-vtg
       visType: json
+  - plotType: chart
+    id: seapath-vtg
+    heading: Seapath - COG/SOG
+    dataArray:
+    - dataType: seapath-vtg
+      visType: json
 
 - title: Weather
   page: weather
@@ -227,10 +241,22 @@
   - charts-zoom
   placeholderArray:
   - plotType: chart
+    id: mpp-fm
+    heading: MetPakPro - Forward Mast
+    dataArray:
+    - dataType: mpp-fm
+      visType: json
+  - plotType: chart
     id: mpp-mm-aft
     heading: MetPakPro - Main Mast - Aft
     dataArray:
     - dataType: mpp-mm-aft
+      visType: json
+  - plotType: chart
+    id: truewind-mpp-fm
+    heading: MMP True Wind - Forward Mast
+    dataArray:
+    - dataType: truewind-mpp-fm
       visType: json
   - plotType: chart
     id: truewind-mpp-mm-aft
@@ -300,6 +326,12 @@
     heading: EM712 - DPT
     dataArray:
     - dataType: em712-dpt
+      visType: json
+  - plotType: chart
+    id: minisvs-aft
+    heading: MiniSVS - Aft
+    dataArray:
+    - dataType: minisvs-aft
       visType: json
   - plotType: chart
     id: minisvs-fwd
