@@ -78,7 +78,7 @@ class PashrParser(OpenVDMCSVParser):
         errors = []
         try:
             with open(filepath, mode='r', encoding="utf-8") as csvfile:
-                reader = csv.DictReader(csvfile, self.raw_cols)
+                reader = csv.DictReader(l.replace('\0', '') for l in csvfile)(, self.raw_cols)
 
                 if self.skip_header:
                     next(reader)

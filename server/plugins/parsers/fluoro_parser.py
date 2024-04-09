@@ -77,13 +77,14 @@ class FluoroParser(OpenVDMCSVParser):
         Process the provided file
         """
 
-        raw_into_df = { value: [] for key, value in enumerate(self.data_to_raw_col) }
-
+        #raw_into_df = { value: [] for key, value in enumerate(self.data_to_raw_col) }
+        raw_into_df = { value: [] for key, value in enumerate(self.proc_cols) }
+        
         logging.debug("Parsing data file...")
         errors = []
         try:
             with open(filepath, mode='r', encoding="utf-8") as csvfile:
-                reader = csv.DictReader(csvfile, self.raw_cols)
+                reader = csv.DictReader((l.replace('\0', '') for l in csvfile), self.raw_cols)
 
                 if self.skip_header:
                     next(reader)
@@ -101,6 +102,9 @@ class FluoroParser(OpenVDMCSVParser):
                         else:
                             _,_,nu,_,_ = line['data'].split('\t')
 
+                        if nu == '':
+                            continue
+
                     except Exception as err:
                         errors.append(lineno)
                         logging.warning("Parsing error encountered on line %s", lineno)
@@ -109,11 +113,12 @@ class FluoroParser(OpenVDMCSVParser):
 
                     else:
                         raw_into_df['date_time'].append(date_time)
-                        raw_into_df['nu'].append(nu)
+                        raw_into_df['nu'].append(int(nu))
 
         except Exception as err:
             logging.error("Problem accessing input file: %s", filepath)
             logging.error(str(err))
+            raise(err)
             return
 
         logging.debug("Finished parsing data file")
