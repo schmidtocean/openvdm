@@ -3,6 +3,10 @@ def condense_to_ranges(integers):
     start = None
     prev = None
 
+    def reduce_ranges(r):
+        start, prev = r.split('-')
+        return start if start == prev else r
+
     for num in sorted(integers):
         if start is None:
             start = num
@@ -18,4 +22,4 @@ def condense_to_ranges(integers):
     if start is not None:
         ranges.append(f"{start}-{prev}")
 
-    return ranges
+    return map(reduce_ranges, ranges)
