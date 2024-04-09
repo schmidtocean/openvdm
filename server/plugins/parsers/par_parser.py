@@ -42,6 +42,7 @@ import pandas as pd
 sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
+from server.lib.condense_to_ranges import condense_to_ranges
 
 RAW_COLS = ['date_time','hdr','irradiance','voltage'] # OpenRVDAS style
 # RAW_COLS = ['date','time','hdr','irradiance','voltage'] # SCS style
@@ -182,7 +183,7 @@ class PARParser(OpenVDMCSVParser):
 
         # send message about errors encountered to OpenVDM
         if self.openvdm is not None and len(errors) > 0:
-            self.openvdm.send_msg('Parsing Error', 'Error(s) parsing datafile {} on row(s): {}'.format(filepath, ', '.join([str(error) for error in errors])))
+            self.openvdm.send_msg('Parsing Error', f'Error(s) parsing datafile {filepath} on row(s): {", ".join(condense_to_ranges(errors))}')
 
 
 # -------------------------------------------------------------------------------------

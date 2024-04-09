@@ -42,7 +42,7 @@ import pandas as pd
 sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
-
+from server.lib.condense_to_ranges import condense_to_ranges
 
 RAW_COLS = ['date_time','node_letter','wind_dir','wind_spd','air_pres','humidity','air_temp','dew_point','prt','humidity','analog_1','analog_2','digital_1','digital_2','supply_voltage','supply_code','checksum'] # OpenRVDAS style
 # RAW_COLS = ['date','time','node_letter','wind_dir','wind_spd','air_pres','humidity','air_temp','dew_point','prt','humidity','analog_1','analog_2','digital_1','digital_2','supply_voltage','supply_code','checksum'] # SCS style
@@ -217,7 +217,7 @@ class MetPakProParser(OpenVDMCSVParser):
 
         # send message about errors encountered to OpenVDM
         if self.openvdm is not None and len(errors) > 0:
-            self.openvdm.send_msg('Parsing Error', f'Error(s) parsing datafile {filepath} on row(s): {", ".join([str(error) for error in errors])}')
+            self.openvdm.send_msg('Parsing Error', f'Error(s) parsing datafile {filepath} on row(s): {", ".join(condense_to_ranges(errors))}')
 
 
 # -------------------------------------------------------------------------------------

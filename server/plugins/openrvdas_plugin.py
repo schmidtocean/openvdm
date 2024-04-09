@@ -56,6 +56,7 @@ from server.plugins.parsers.pashr_parser     import PashrParser
 # from server.plugins.parsers.prdid_parser   import PRDIDParser
 # from server.plugins.parsers.rmc_parser       import RMCParser
 # from server.plugins.parsers.rot_parser       import ROTParser
+# from server.plugins.parsers.rad_parser       import RADParser
 from server.plugins.parsers.svp_parser       import SVPParser
 from server.plugins.parsers.tsg_parser     import TSGParser
 from server.plugins.parsers.vtg_parser       import VTGParser
@@ -184,8 +185,8 @@ class OpeRVDASPlugin(OpenVDMPlugin):
         if file_type_filter['parser'] == "PRDID":
             return PRDIDParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "RAD":
-            return RADParser(**file_type_filter['parser_options'])
+        # if file_type_filter['parser'] == "RAD":
+        #     return RADParser(**file_type_filter['parser_options'])
 
         if file_type_filter['parser'] == "Fluoro":
             return FluoroParser(**file_type_filter['parser_options'])
