@@ -100,7 +100,7 @@ fileTypeFilters = [
     {"data_type":"posmv-pashr",      "regex": "*/" + cruiseID + "_posmv_pashr-*.txt",     "parser": "Pashr",     'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"posmv-rmc",        "regex": "*/" + cruiseID + "_posmv_rmc-*.txt",       "parser": "RMC",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"posmv-vtg",        "regex": "*/" + cruiseID + "_posmv_vtg-*.txt",       "parser": "VTG",       'parser_options':{'skip_header':True,'use_openvdm_api':True,'no_mag':True}},
-    {"data_type":"rad-fm-stb",       "regex": "*/" + cruiseID + "_rad_fm_stb-*.txt",      "parser": "RAD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    # {"data_type":"rad-fm-stb",       "regex": "*/" + cruiseID + "_rad_fm_stb-*.txt",      "parser": "RAD",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"seapath-gga",      "regex": "*/" + cruiseID + "_seapath330_gga-*.txt",  "parser": "GGA",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"seapath-hdt",      "regex": "*/" + cruiseID + "_seapath330_hdt-*.txt",  "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"seapath-prdid",    "regex": "*/" + cruiseID + "_seapath330_prdid-*.txt",   "parser": "PRDID",     'parser_options':{'skip_header':True,'use_openvdm_api':True}},
