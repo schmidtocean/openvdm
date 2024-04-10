@@ -58,7 +58,7 @@ from server.plugins.parsers.pashr_parser     import PashrParser
 # from server.plugins.parsers.rot_parser       import ROTParser
 # from server.plugins.parsers.rad_parser       import RADParser
 from server.plugins.parsers.svp_parser       import SVPParser
-from server.plugins.parsers.tsg_parser     import TSGParser
+from server.plugins.parsers.tsg_parser       import TSGParser
 from server.plugins.parsers.vtg_parser       import VTGParser
 
 cruiseID = OpenVDM().get_cruise_id()
