@@ -42,8 +42,7 @@ import pandas as pd
 sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
-
-
+from server.lib.condense_to_ranges import condense_to_ranges
 
 RAW_COLS = ['date','time','jday','temp','salinity','ph','voltage'] # OpenRVDAS style
 # RAW_COLS = ['date','time','jday','temp','salinity','ph','voltage'] # SCS style
