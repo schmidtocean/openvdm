@@ -58,7 +58,7 @@ from server.plugins.parsers.pashr_parser     import PashrParser
 # from server.plugins.parsers.rot_parser       import ROTParser
 # from server.plugins.parsers.rad_parser       import RADParser
 from server.plugins.parsers.svp_parser       import SVPParser
-from server.plugins.parsers.tsg_parser       import TSGParser
+from server.plugins.parsers.tsg45_parser     import SBE45TSGParser
 from server.plugins.parsers.vtg_parser       import VTGParser
 
 cruiseID = OpenVDM().get_cruise_id()
@@ -140,44 +140,44 @@ class OpeRVDASPlugin(OpenVDMPlugin):
 
         file_type_filter = file_type_filter[0]
 
+        if file_type_filter['parser'] == "DBS":
+            return DBSParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "DPT":
+            return DPTParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "Flowrate":
+            return FlowrateParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "Fluoro":
+            return FluoroParser(**file_type_filter['parser_options'])
+
         if file_type_filter['parser'] == "GGA":
             return GGAParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "TSG":
-            return TSGParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "MWD":
-            return MWDParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "SVP":
-            return SVPParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "MetPakPro":
-            return MetPakProParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "TSG":
-            return TSGParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "ROT":
-            return ROTParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "RMC":
-            return RMCParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "GLL":
-            return GLLParser(**file_type_filter['parser_options'])
 
         if file_type_filter['parser'] == "GGK":
             return GGKParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "PAR":
-            return PARParser(**file_type_filter['parser_options'])
+        if file_type_filter['parser'] == "GLL":
+            return GLLParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "GST":
+            return GSTParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "HDT":
+            return HDTParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "MetPakPro":
+            return MetPakProParser(**file_type_filter['parser_options'])
 
         if file_type_filter['parser'] == "MiniSVS":
             return MiniSVSParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "GST":
-            return GSTParser(**file_type_filter['parser_options'])
+        if file_type_filter['parser'] == "MWD":
+            return MWDParser(**file_type_filter['parser_options'])
+
+        if file_type_filter['parser'] == "PAR":
+            return PARParser(**file_type_filter['parser_options'])
 
         if file_type_filter['parser'] == "Pashr":
             return PashrParser(**file_type_filter['parser_options'])
@@ -188,20 +188,17 @@ class OpeRVDASPlugin(OpenVDMPlugin):
         # if file_type_filter['parser'] == "RAD":
         #     return RADParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "Fluoro":
-            return FluoroParser(**file_type_filter['parser_options'])
+        if file_type_filter['parser'] == "RMC":
+            return RMCParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "Flowrate":
-            return FlowrateParser(**file_type_filter['parser_options'])
+        if file_type_filter['parser'] == "ROT":
+            return ROTParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "HDT":
-            return HDTParser(**file_type_filter['parser_options'])
+        if file_type_filter['parser'] == "SVP":
+            return SVPParser(**file_type_filter['parser_options'])
 
-        if file_type_filter['parser'] == "DBS":
-            return DBSParser(**file_type_filter['parser_options'])
-
-        if file_type_filter['parser'] == "DPT":
-            return DPTParser(**file_type_filter['parser_options'])
+        if file_type_filter['parser'] == "TSG":
+            return SBE45TSGParser(**file_type_filter['parser_options'])
 
         if file_type_filter['parser'] == "VTG":
             return VTGParser(**file_type_filter['parser_options'])
