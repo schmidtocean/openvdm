@@ -9,16 +9,13 @@ venv/
 # OpenVDM specific
 **/.DS_Store
 database/openvdm_db_custom.sql
-# bin/*.py
-# server/plugins/*.py
-# server/plugins/parsers/*.py
-# server/etc/openvdm.yaml
-
 bin/build_cruise_tracks.py
 bin/build_remote_directory.py
 bin/preferences.sh
 bin/sealog_post_cruise_export.py
 bin/sealog_post_dive_export.py
+server/plugins/*.py
+server/plugins/parsers/*.py
 server/etc/openvdm.yaml
 www/etc/datadashboard.yamlwww/app/Core/Config.php
 www/app/Core/Config.php
