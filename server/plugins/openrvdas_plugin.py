@@ -68,8 +68,8 @@ cruiseID = OpenVDM().get_cruise_id()
 # regex expression.
 # -------------------------------------------------------------------------------------
 fileTypeFilters = [
-    {"data_type":"dps122-gga",       "regex": "*/" + cruiseID + "_dps122_gga-*.txt",      "parser": "GGA",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
-    {"data_type":"dps122-vtg",       "regex": "*/" + cruiseID + "_dps122_vtg-*.txt",      "parser": "VTG",       'parser_options':{'skip_header':True,'use_openvdm_api':True,'no_mag':True}},
+    {"data_type":"dpsi1-gga",        "regex": "*/" + cruiseID + "_dpsi1_gga-*.txt",       "parser": "GGA",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    {"data_type":"dpsi1-vtg",        "regex": "*/" + cruiseID + "_dpsi1_vtg-*.txt",       "parser": "VTG",       'parser_options':{'skip_header':True,'use_openvdm_api':True,'no_mag':True}},
     {"data_type":"ea440-dbs",        "regex": "*/" + cruiseID + "_ea440_dbs-*.txt",       "parser": "DBS",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"ea440-dpt",        "regex": "*/" + cruiseID + "_ea440_dpt-*.txt",       "parser": "DPT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"ea640-dbs",        "regex": "*/" + cruiseID + "_ea640_dbs-*.txt",       "parser": "DBS",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
