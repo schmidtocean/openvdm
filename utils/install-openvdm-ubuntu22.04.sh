@@ -73,21 +73,22 @@ function set_default_variables {
     DEFAULT_HOSTNAME=$HOSTNAME
     DEFAULT_INSTALL_ROOT=/opt
 
-    DEFAULT_DATA_ROOT=/vault
+    DEFAULT_OPENVDM_REPO=https://github.com/schmidtocean/openvdm
+    DEFAULT_OPENVDM_BRANCH=master-FKt
 
-    DEFAULT_OPENVDM_REPO=https://github.com/oceandatatools/openvdm
-    DEFAULT_OPENVDM_BRANCH=master
-    DEFAULT_OPENVDM_SITEROOT=127.0.0.1
+    DEFAULT_DATA_ROOT=/mnt/soi_data1/vault
+    DEFAULT_OPENVDM_SITEROOT=10.23.9.20
 
-    DEFAULT_OPENVDM_USER=survey
+    DEFAULT_OPENVDM_USER=mt
+    DEFAULT_DB_BACKUP_DIR=/home/$DEFAULT_OPENVDM_USER/openvdm_db_backups
     
     DEFAULT_INSTALL_MAPPROXY=no
 
     DEFAULT_INSTALL_PUBLICDATA=yes
     DEFAULT_INSTALL_VISITORINFORMATION=no
 
-    DEFAULT_SUPERVISORD_WEBINTERFACE=no
-    DEFAULT_SUPERVISORD_WEBINTERFACE_AUTH=no
+    DEFAULT_SUPERVISORD_WEBINTERFACE=yes
+    DEFAULT_SUPERVISORD_WEBINTERFACE_AUTH=yes
 
     # Read in the preferences file, if it exists, to overwrite the defaults.
     if [ -e $PREFERENCES_FILE ]; then
@@ -115,6 +116,7 @@ DEFAULT_DATA_ROOT=$DATA_ROOT
 DEFAULT_OPENVDM_SITEROOT=$OPENVDM_SITEROOT
 
 DEFAULT_OPENVDM_USER=$OPENVDM_USER
+DEFAULT_DB_BACKUP_DIR=$DB_BACKUP_DIR
 
 DEFAULT_INSTALL_MAPPROXY=$INSTALL_MAPPROXY
 
@@ -187,6 +189,10 @@ function install_packages {
         NODE_VERSION= node -V
         sudo ln -s $HOME/.nvm/versions/node/$NODE_VERSION/bin/npm /usr/local/bin/
         sudo ln -s $HOME/.nvm/versions/node/$NODE_VERSION/bin/node /usr/local/bin/
+
+	sudo npm install -g bower
+       	sudo ln -s $HOME/.nvm/versions/node/$NODE_VERSION/bin/bower /usr/local/bin/
+
     fi
     
     apt-get update -qq
@@ -206,8 +212,6 @@ function install_packages {
         pip3 install MapProxy --quiet
     fi
     
-    npm install --quiet -g bower
-
     cd ~
     curl -sS https://getcomposer.org/installer | php
     mv composer.phar /usr/local/bin/composer
@@ -358,7 +362,7 @@ stopsignal=INT
 command=${VENV_BIN}/python server/workers/run_collection_system_transfer.py
 directory=${INSTALL_ROOT}/openvdm
 process_name=%(program_name)s_%(process_num)s
-numprocs=2
+numprocs=8
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/run_collection_system_transfer.log
 user=root
@@ -370,7 +374,7 @@ stopsignal=INT
 command=${VENV_BIN}/python server/workers/run_cruise_data_transfer.py
 directory=${INSTALL_ROOT}/openvdm
 process_name=%(program_name)s_%(process_num)s
-numprocs=2
+numprocs=4
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/run_cruise_data_transfer.log
 user=root
@@ -571,8 +575,8 @@ function configure_apache {
     </Directory>
 EOF
 
-if [ $INSTALL_MAPPROXY == 'yes' ]; then
-    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    if [ $INSTALL_MAPPROXY == 'yes' ]; then
+        cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     WSGIScriptAlias /mapproxy /var/www/mapproxy/config.py
 
@@ -581,9 +585,9 @@ if [ $INSTALL_MAPPROXY == 'yes' ]; then
       Allow from all
     </Directory>
 EOF
-fi
+    fi
 
-cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     Alias /CruiseData/ $DATA_ROOT/CruiseData/
     <Directory "$DATA_ROOT/CruiseData">
@@ -595,8 +599,8 @@ cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
     </Directory>
 EOF
 
-if [ $INSTALL_PUBLICDATA == 'yes' ]; then
-    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    if [ $INSTALL_PUBLICDATA == 'yes' ]; then
+        cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     Alias /PublicData/ $DATA_ROOT/PublicData/
     <Directory "$DATA_ROOT/PublicData">
@@ -607,10 +611,10 @@ if [ $INSTALL_PUBLICDATA == 'yes' ]; then
       Require all granted
     </Directory>
 EOF
-fi
+    fi
 
-if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
-    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
+        cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
     Alias /VisitorInformation/ $DATA_ROOT/VisitorInformation/
     <Directory "$DATA_ROOT/VisitorInformation">
@@ -621,9 +625,9 @@ if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
       Require all granted
     </Directory>
 EOF
-fi
+    fi
 
-cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
+    cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
 </VirtualHost>
 EOF
@@ -777,14 +781,6 @@ EOF
     [ ! -z $CURRENT_ROOT_DATABASE_PASSWORD ] || mysql -u root < /tmp/set_pwd
     rm -f /tmp/set_pwd
 
-    # Now do the rest of the 'mysql_safe_installation' stuff
-#     mysql -u root -p$NEW_ROOT_DATABASE_PASSWORD <<EOF
-# DELETE FROM mysql.user WHERE User='root' AND Host NOT IN ('localhost', '127.0.0.1', '::1');
-# DELETE FROM mysql.user WHERE User='';
-# DELETE FROM mysql.db WHERE Db='test' OR Db='test_%';
-# FLUSH PRIVILEGES;
-# EOF
-
     # Start mysql to start up as a service
     update-rc.d mysql defaults
 
@@ -799,20 +795,85 @@ EOF
 }
 
 
+function restore_openvdm_db {
+
+    # Directory containing SQL files
+    sql_directory="${INSTALL_ROOT}/openvdm/database/backups"
+
+    # Function to display menu and prompt user for selection
+    select_sql_file() {
+        #local files=("$sql_directory"/*.sql)
+        local sql_files=$(find "$sql_directory" -type f -name "*.sql")
+        local selected_file
+
+        # Check if SQL files are found
+        if [ -z "$sql_files" ]; then
+            echo "No backup files found in $sql_directory"
+            return
+        fi
+
+        echo "Select SQL file to restore:"
+        select filename in $sql_files "Cancel"; do
+            selected_file="$filename"
+            break
+        done
+
+        if [ $selected_file == "Cancel" ];then
+            return
+        fi
+
+        echo "You selected: $selected_file"
+        restore_database "$selected_file"
+    }
+
+    # Function to restore MySQL database from selected SQL file
+    restore_database() {
+        local sql_file="$1"
+
+        # Tables to exclude from restoration
+        excluded_tables=("OVDM_CoreVars")
+
+        # Exclude the specific table from the SQL file
+        temp_file=$(mktemp)
+        temp2_file=$(mktemp)
+        cat $sql_file > $temp_file
+    
+        for table in "${excluded_tables[@]}"; do
+            sed -e "/DROP TABLE IF EXISTS \`${table}\`;/d" \
+                -e "/CREATE TABLE \`${table}\`/,/;/d" \
+                -e "/INSERT INTO \`${table}\`/d" \
+                -e "/LOCK TABLES \`${table}\` WRITE;/d" \
+                "$temp_file" > "$temp2_file" && mv "$temp2_file" "$temp_file"
+        done
+
+        # Restore the database
+        mysql -u"$OPENVDM_USER" -p"$OPENVDM_DATABASE_PASSWORD" "openvdm" < "$temp_file"
+
+        if [ $? -eq 0 ]; then
+            echo "Database restored successfully."
+        else
+            echo "Database restore failed."
+        fi
+    }
+
+    select_sql_file
+}
+
+
 function configure_directories {
 
     if [ ! -d $DATA_ROOT ]; then
         echo "Creating data directory structure starting at: $DATA_ROOT"
 
-        mkdir -p ${DATA_ROOT}/CruiseData/Test_Cruise/Vehicle/Test_Lowering
-        mkdir -p ${DATA_ROOT}/CruiseData/Test_Cruise/OpenVDM/DashboardData
-        mkdir -p ${DATA_ROOT}/CruiseData/Test_Cruise/OpenVDM/TransferLogs
+        mkdir -p ${DATA_ROOT}/CruiseData/FKt990101/Vehicle/S9999
+        mkdir -p ${DATA_ROOT}/CruiseData/FKt990101/OpenVDM/DashboardData
+        mkdir -p ${DATA_ROOT}/CruiseData/FKt990101/OpenVDM/TransferLogs
 
-        echo "[]" > ${DATA_ROOT}/CruiseData/Test_Cruise/OpenVDM/DashboardData/manifest.json
-        echo "{}" > ${DATA_ROOT}/CruiseData/Test_Cruise/ovdmConfig.json
-        echo "{}" > ${DATA_ROOT}/CruiseData/Test_Cruise/Vehicle/Test_Lowering/loweringConfig.json
-        touch ${DATA_ROOT}/CruiseData/Test_Cruise/MD5_Summary.md5
-        touch ${DATA_ROOT}/CruiseData/Test_Cruise/MD5_Summary.txt
+        echo "[]" > ${DATA_ROOT}/CruiseData/FKt990101/OpenVDM/DashboardData/manifest.json
+        echo "{}" > ${DATA_ROOT}/CruiseData/FKt990101/ovdmConfig.json
+        echo "{}" > ${DATA_ROOT}/CruiseData/FKt990101/Vehicle/S9999/loweringConfig.json
+        touch ${DATA_ROOT}/CruiseData/FKt990101/MD5_Summary.md5
+        touch ${DATA_ROOT}/CruiseData/FKt990101/MD5_Summary.txt
 
         if [ $INSTALL_PUBLICDATA == 'yes' ]; then
             mkdir -p ${DATA_ROOT}/PublicData
@@ -897,7 +958,7 @@ function install_openvdm {
             cd ..
             rm -rf openvdm
             git clone -q -b $OPENVDM_BRANCH $OPENVDM_REPO ./openvdm
-	    chown -R ${OPENVDM_USER}:${OPENVDM_USER} ./openvdm
+        chown -R ${OPENVDM_USER}:${OPENVDM_USER} ./openvdm
         fi
     fi
 
@@ -926,7 +987,7 @@ EOF
         fi
 
         hashed_password=$(php -r "echo password_hash('${OPENVDM_DATABASE_PASSWORD}', PASSWORD_DEFAULT);")
-	cat >> ${INSTALL_ROOT}/openvdm/database/openvdm_db_custom.sql <<EOF 
+    cat >> ${INSTALL_ROOT}/openvdm/database/openvdm_db_custom.sql <<EOF 
 
 INSERT INTO OVDM_Users (username, password)
 VALUES ('${OPENVDM_USER}', '${hashed_password}');
@@ -1013,7 +1074,6 @@ echo "#####################################################################"
 read -p "Name to assign to host ($DEFAULT_HOSTNAME)? " HOSTNAME
 HOSTNAME=${HOSTNAME:-$DEFAULT_HOSTNAME}
 echo "Hostname will be '$HOSTNAME'"
-# Set hostname
 set_hostname $HOSTNAME
 echo
 
@@ -1025,6 +1085,10 @@ OPENVDM_REPO=${OPENVDM_REPO:-$DEFAULT_OPENVDM_REPO}
 
 read -p "Repository branch to install? ($DEFAULT_OPENVDM_BRANCH) " OPENVDM_BRANCH
 OPENVDM_BRANCH=${OPENVDM_BRANCH:-$DEFAULT_OPENVDM_BRANCH}
+echo
+
+read -p "Location of database backups? ($DEFAULT_DB_BACKUP_DIR) " DB_BACKUP_DIR
+DB_BACKUP_DIR=${DB_BACKUP_DIR:-$DEFAULT_DB_BACKUP_DIR}
 echo
 
 echo "Will install from github.com"
@@ -1191,6 +1255,11 @@ echo
 echo "#####################################################################"
 echo "Installing/Configuring OpenVDM"
 install_openvdm
+echo
+
+echo "#####################################################################"
+echo "Restore OpenVDM DB from backup"
+restore_openvdm_db
 echo
 
 echo "#####################################################################"

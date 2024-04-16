@@ -1,11 +1,11 @@
 #!/usr/bin/env python3
 """
-FILE:  ph_parser.py
+FILE:  mwd_parser.py
 
-USAGE:  ph_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] <dataFile>
+USAGE:  mwd_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] <dataFile>
 
-DESCRIPTION:  Parse the supplied pH sensor data and return the json-formatted
-              string used by OpenVDM as part of it's Data dashboard.
+DESCRIPTION:  Parse the supplied NMEA MWD data and return the json-formatted
+    string used by OpenVDM as part of it's Data dashboard.
 
   OPTIONS:  [-h] Return the help message.
             [-v+] Increase verbosity (default: warning)
@@ -15,25 +15,25 @@ DESCRIPTION:  Parse the supplied pH sensor data and return the json-formatted
             [--stopTS] optional stop crop time (strptime format)
             <dataFile> Full or relative path of the data file to process.
 
-REQUIREMENTS:  Python3.10
+REQUIREMENTS:  Python3.8
             Python Modules:
-                numpy==1.22.2
-                pandas==1.4.1
-                PyYAML==6.0
-                requests==2.27.1
+                numpy==1.19.5
+                pandas==1.2.0
+                PyYAML==5.3.1
+                requests==2.25.1
 
      BUGS:
     NOTES:
    AUTHOR:  Webb Pinner
-  VERSION:  2.9
+  VERSION:  2.6
   CREATED:  2016-08-29
- REVISION:  2024-04-10
+ REVISION:  2021-02-13
 """
 
+import sys
 import csv
 import json
 import logging
-import sys
 from copy import deepcopy
 from datetime import datetime
 from os.path import dirname, realpath
@@ -44,19 +44,19 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 from server.lib.condense_to_ranges import condense_to_ranges
 
-RAW_COLS = ['date','time','jday','temp','salinity','ph','voltage'] # OpenRVDAS style
-# RAW_COLS = ['date','time','jday','temp','salinity','ph','voltage'] # SCS style
-PROC_COLS = ['date_time','temp','ph']
+RAW_COLS = ['date_time','hdr','wind_dir_t','T','wind_dir_m','M','wind_spd_n','N','wind_spd_m','M_checksum'] # OpenRVDAS style
+# RAW_COLS = ['date','time','hdr','wind_dir_t','T','wind_dir_m','M','wind_spd_n','N','wind_spd_m','M_checksum'] # SCS style
+PROC_COLS = ['date_time','wind_spd_m','wind_dir_t']
 
 ROUNDING = {
-    'temp': 2,
-    'ph': 2
+    'wind_spd_m': 2,
+    'wind_dir_t':1
 }
 
 MAX_DELTA_T = pd.Timedelta('10 seconds')
 
 
-class PHParser(OpenVDMCSVParser):
+class MWDParser(OpenVDMCSVParser):
     """
     Custom OpenVDM CSV file parser
     """
@@ -87,7 +87,8 @@ class PHParser(OpenVDMCSVParser):
                         date_time = line['date_time'] # OpenRVDAS style
                         # date_time = ' '.join([line['date'], line['time']]) # SCS style
 
-                        ph_data = float(line['ph'])
+                        wind_spd_m = float(line['wind_spd_m'])
+                        wind_dir_t = float(line['wind_dir_t'])
 
                     except Exception as err:
                         errors.append(lineno)
@@ -97,7 +98,8 @@ class PHParser(OpenVDMCSVParser):
 
                     else:
                         raw_into_df['date_time'].append(date_time)
-                        raw_into_df['ph'].append(ph_data)
+                        raw_into_df['wind_spd_m'].append(wind_spd_m)
+                        raw_into_df['wind_dir_t'].append(wind_dir_t)
 
         except Exception as err:
             logging.error("Problem accessing input file: %s", filepath)
@@ -140,8 +142,7 @@ class PHParser(OpenVDMCSVParser):
         self.add_time_bounds_stat([df_proc['date_time'].min(), df_proc['date_time'].max()])
         self.add_bounds_stat([round(df_proc['deltaT'].min().total_seconds(),3), round(df_proc['deltaT'].max().total_seconds(),3)], 'DeltaT Bounds', 'seconds')
         self.add_value_validity_stat([len(df_proc[(df_proc['deltaT'] <= MAX_DELTA_T)]),len(df_proc[(df_proc['deltaT'] > MAX_DELTA_T)])], 'DeltaT Validity')
-        self.add_bounds_stat([round(df_proc['temp'].min(),ROUNDING['temp']), round(df_proc['temp'].max(),ROUNDING['temp'])], 'Temperature Bounds', 'C')
-        self.add_bounds_stat([round(df_proc['ph'].min(),ROUNDING['ph']), round(df_proc['ph'].max(),ROUNDING['ph'])], 'pH Bounds')
+        self.add_bounds_stat([round(df_proc['wind_spd_m'].min(),2), round(df_proc['wind_spd_m'].max(),2)], 'Wind Speed Bounds', 'm/s')
 
         logging.debug("Running quality tests...")
         # % of bad rows in datafile
@@ -178,15 +179,14 @@ class PHParser(OpenVDMCSVParser):
         logging.debug("Building visualization data...")
 
         visualizer_data_obj = {'data':[], 'unit':'', 'label':''}
-        visualizer_data_obj['data'] = json.loads(df_proc[['date_time','temp']].to_json(orient='values'))
-        visualizer_data_obj['unit'] = 'C'
-        visualizer_data_obj['label'] = 'Temperature'
+        visualizer_data_obj['data'] = json.loads(df_proc[['date_time','wind_spd_m']].to_json(orient='values'))
+        visualizer_data_obj['unit'] = 'm/s'
+        visualizer_data_obj['label'] = 'Wind Speed'
         self.add_visualization_data(deepcopy(visualizer_data_obj))
 
-        visualizer_data_obj = {'data':[], 'unit':'', 'label':''}
-        visualizer_data_obj['data'] = json.loads(df_proc[['date_time','ph']].to_json(orient='values'))
-        visualizer_data_obj['unit'] = ''
-        visualizer_data_obj['label'] = 'pH'
+        visualizer_data_obj['data'] = json.loads(df_proc[['date_time','wind_dir_t']].to_json(orient='values'))
+        visualizer_data_obj['unit'] = 'deg'
+        visualizer_data_obj['label'] = 'Wind Direction'
         self.add_visualization_data(deepcopy(visualizer_data_obj))
 
         # send message about errors encountered to OpenVDM
@@ -200,7 +200,7 @@ class PHParser(OpenVDMCSVParser):
 if __name__ == "__main__":
     import argparse
 
-    parser = argparse.ArgumentParser(description='Parse pH sensor data')
+    parser = argparse.ArgumentParser(description='Parse true wind sensor data')
     parser.add_argument('-v', '--verbosity', dest='verbosity',
                         default=0, action='count',
                         help='Increase output verbosity')
@@ -227,7 +227,7 @@ if __name__ == "__main__":
     parsed_args.verbosity = min(parsed_args.verbosity, max(LOG_LEVELS))
     logging.getLogger().setLevel(LOG_LEVELS[parsed_args.verbosity])
 
-    ovdm_parser = PHParser(start_dt=parsed_args.startDT, stop_dt=parsed_args.stopDT, time_format=parsed_args.timeFormat)
+    ovdm_parser = MWDParser(start_dt=parsed_args.startDT, stop_dt=parsed_args.stopDT, time_format=parsed_args.timeFormat)
 
     try:
         logging.info("Processing file: %s", parsed_args.dataFile)

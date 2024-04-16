@@ -9,5 +9,7 @@
 # This script assumes the name of the OpenVDM database is "openvdm"
 #
 
-mysqldump openvdm -p --ignore-table=openvdm.OVDM_Messages
-mysqldump openvdm -p --no-data OVDM_Messages
+DATABASE=openvdm
+
+mysqldump $DATABASE -p --ignore-table=openvdm.OVDM_Messages --ignore-table=openvdm.OVDM_Gearman
+mysqldump $DATABASE -p --no-data OVDM_Messages --no-data OVDM_Gearman
