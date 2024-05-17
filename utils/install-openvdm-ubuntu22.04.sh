@@ -76,7 +76,7 @@ function set_default_variables {
     DEFAULT_OPENVDM_REPO=https://github.com/schmidtocean/openvdm
     DEFAULT_OPENVDM_BRANCH=master-FKt
 
-    DEFAULT_DATA_ROOT=/mnt/soi_data1/vault
+    DEFAULT_DATA_ROOT=/mnt/soi_data1
     DEFAULT_OPENVDM_SITEROOT=10.23.9.20
 
     DEFAULT_OPENVDM_USER=mt
@@ -524,9 +524,9 @@ fi
 if [ $INSTALL_PUBLICDATA == 'yes' ]; then
     cat >> /etc/samba/openvdm.conf <<EOF
 
-[PublicData]
-  comment=Public Data, read/write access to all
-  path=${DATA_ROOT}/PublicData
+[ParticipantData]
+  comment=Participant Data, read/write access to all
+  path=${DATA_ROOT}/ParticipantData
   browseable = yes
   public = yes
   guest ok = yes
@@ -602,8 +602,8 @@ EOF
     if [ $INSTALL_PUBLICDATA == 'yes' ]; then
         cat >> /etc/apache2/sites-available/openvdm.conf <<EOF
 
-    Alias /PublicData/ $DATA_ROOT/PublicData/
-    <Directory "$DATA_ROOT/PublicData">
+    Alias /ParticipantData/ $DATA_ROOT/ParticipantData/
+    <Directory "$DATA_ROOT/ParticipantData">
       AllowOverride None
       Options +Indexes -FollowSymLinks +MultiViews
       Order allow,deny
@@ -876,8 +876,8 @@ function configure_directories {
         touch ${DATA_ROOT}/CruiseData/FKt990101/MD5_Summary.txt
 
         if [ $INSTALL_PUBLICDATA == 'yes' ]; then
-            mkdir -p ${DATA_ROOT}/PublicData
-            chmod -R 777 ${DATA_ROOT}/PublicData
+            mkdir -p ${DATA_ROOT}/ParticipantData
+            chmod -R 777 ${DATA_ROOT}/ParticipantData
         fi
 
         if [ $INSTALL_VISITORINFORMATION == 'yes' ]; then
@@ -1019,7 +1019,7 @@ EOF
     sed -s "s/define('DB_USER', 'openvdmDBUser');/define('DB_USER', '${OPENVDM_USER}');/" ${INSTALL_ROOT}/openvdm/www/app/Core/Config.php.dist | \
     sed -e "s/define('DB_PASS', 'oxhzbeY8WzgBL3');/define('DB_PASS', '${OPENVDM_DATABASE_PASSWORD}');/" | \
     sed -e "s|define('CRUISEDATA_BASEDIR', '/vault/CruiseData');|define('CRUISEDATA_BASEDIR', '${DATA_ROOT}/CruiseData');|" | \
-    sed -e "s|define('PUBLICDATA_DIR', '/vault/PublicData');|define('PUBLICDATA_DIR', '${DATA_ROOT}/PublicData');|" \
+    sed -e "s|define('PUBLICDATA_DIR', '/vault/PublicData');|define('PUBLICDATA_DIR', '${DATA_ROOT}/ParticipantData');|" \
     > ${INSTALL_ROOT}/openvdm/www/app/Core/Config.php
 
     if [ -e ${INSTALL_ROOT}/openvdm/www/errorlog.html ] ; then
@@ -1191,12 +1191,12 @@ echo
 #########################################################################
 # Install PublicData?
 echo "#####################################################################"
-echo "Setup a PublicData SMB Share for scientists and crew to share files,"
-echo "pictures, etc. These files will be copied to the cruise data "
+echo "Setup a ParticipantData SMB Share for scientists and crew to share"
+echo "files, pictures, etc. These files will be copied to the cruise data "
 echo "directory at the end of the cruise. This behavior can be disabled in"
 echo "the ${INSTALL_ROOT}/openvdm/server/etc/openvdm.yaml file."
 echo
-yes_no "Setup PublicData Share? " $DEFAULT_INSTALL_PUBLICDATA
+yes_no "Setup ParticipantData Share? " $DEFAULT_INSTALL_PUBLICDATA
 INSTALL_PUBLICDATA=$YES_NO_RESULT
 echo
 
