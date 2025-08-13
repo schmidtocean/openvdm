@@ -84,11 +84,20 @@ class Warehouse extends Model {
         return CRUISE_CONFIG_FN;
     }
 
+    public function getCruiseDataURLPath(){
+        return CRUISEDATA_APACHEDIR;
+    }
+
     public function getCruiseID(){
         $row = $this->db->select("SELECT * FROM ".PREFIX."CoreVars WHERE name = 'cruiseID'");
         return $row[0]->value;
     }
     
+    public function getCruiseName(){
+        $row = $this->db->select("SELECT * FROM ".PREFIX."CoreVars WHERE name = 'cruiseName'");
+        return $row[0]->value;
+    }
+
     public function getCruiseStartDate(){
         $row = $this->db->select("SELECT * FROM ".PREFIX."CoreVars WHERE name = 'cruiseStartDate'");
         return $row[0]->value;
@@ -106,6 +115,16 @@ class Warehouse extends Model {
 
     public function getCruiseEndPort(){
         $row = $this->db->select("SELECT * FROM ".PREFIX."CoreVars WHERE name = 'cruiseEndPort'");
+        return $row[0]->value;
+    }
+
+    public function getCruisePI(){
+        $row = $this->db->select("SELECT * FROM ".PREFIX."CoreVars WHERE name = 'cruisePI'");
+        return $row[0]->value;
+    }
+
+    public function getCruiseLocation(){
+        $row = $this->db->select("SELECT * FROM ".PREFIX."CoreVars WHERE name = 'cruiseLocation'");
         return $row[0]->value;
     }
 
@@ -177,6 +196,7 @@ class Warehouse extends Model {
         $shipboardDataWarehousePublicDataDir = PUBLICDATA_DIR;
         $loweringDataBaseDir = $this->getLoweringDataBaseDir();
         $cruiseConfigFn = $this->getCruiseConfigFn();
+        $cruiseDataURLPath = $this->getCruiseDataURLPath();
         $loweringConfigFn = $this->getLoweringConfigFn();
         $dataDashboardManifestFn = $this->getDataDashboardManifestFn();
         $md5SummaryFn = $this->getMd5SummaryFn();
@@ -190,6 +210,7 @@ class Warehouse extends Model {
             'shipboardDataWarehousePublicDataDir' => $shipboardDataWarehousePublicDataDir,
             'loweringDataBaseDir' => $loweringDataBaseDir,
             'cruiseConfigFn' => $cruiseConfigFn,
+            'cruiseDataURLPath' => $cruiseDataURLPath,
             'loweringConfigFn' => $loweringConfigFn,
             'dataDashboardManifestFn' => $dataDashboardManifestFn,
             'md5SummaryFn' => $md5SummaryFn,
@@ -279,6 +300,11 @@ class Warehouse extends Model {
         $this->db->update(PREFIX."CoreVars",$data, $where);
     }
     
+    public function setCruiseName($data){
+        $where = array('name' => 'cruiseName');
+        $this->db->update(PREFIX."CoreVars",$data, $where);
+    }
+    
     public function setCruiseStartDate($data){
 	// var_dump($data);    
 	$where = array('name' => 'cruiseStartDate');
@@ -301,6 +327,16 @@ class Warehouse extends Model {
         $this->db->update(PREFIX."CoreVars",$data, $where);
     }
 
+    public function setCruisePI($data){
+        $where = array('name' => 'cruisePI');
+        $this->db->update(PREFIX."CoreVars",$data, $where);
+    }
+    
+    public function setCruiseLocation($data){
+        $where = array('name' => 'cruiseLocation');
+        $this->db->update(PREFIX."CoreVars",$data, $where);
+    }
+    
     public function setCruiseSize($data){
         $where = array('name' => 'cruiseSize');
         $this->db->update(PREFIX."CoreVars",$data, $where);

@@ -1,11 +1,20 @@
 #!/usr/bin/env python3
-"""Utilities for condensing file parsing error messages
+"""
+FILE:  condense_ranges.py
+
+DESCRIPTION:  Utilities for condensing file parsing error messages
+
+     BUGS:
+    NOTES:
+   AUTHOR:  Webb Pinner
+  VERSION:  2.11
+  CREATED:  2024-06-01
 """
 
 def condense_to_ranges(integers):
     """
     Function to reduce array of consecutive numbers to ranges. This helps
-    condense message bodies related to file parsing errors. 
+    condense message bodies related to file parsing errors.
     """
 
     ranges = []

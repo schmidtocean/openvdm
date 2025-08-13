@@ -12,16 +12,15 @@ DESCRIPTION:  Parse the supplied geotiff file and return the json-
             <dataFile> Full or relative path of the data file to process.
 
 REQUIREMENTS:  Python3.10
-            Python Modules:
-                PyYAML==6.0
-                requests==2.27.1
+               Python Modules:
+                   GDAL==3.10.3
 
      BUGS:
     NOTES:
    AUTHOR:  Webb Pinner
-  VERSION:  2.9
+  VERSION:  2.11
   CREATED:  2016-08-29
- REVISION:  2024-04-10
+ REVISION:  2025-04-12
 """
 
 import os
@@ -37,9 +36,6 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMParser
 
-# DEFAULT_TIME_FORMAT = "%Y-%m-%dT%H:%M:%S.%fZ" # ISO8601 format, OpenRVDAS style
-# DEFAULT_TIME_FORMAT = "%m/%d/%Y %H:%M:%S.%f" # SCS style
-
 class GeoTIFFParser(OpenVDMParser):
     """
     Custom OpenVDM file parser
@@ -47,7 +43,6 @@ class GeoTIFFParser(OpenVDMParser):
 
     def __init__(self, use_openvdm_api=False, output_dir=None):
         super().__init__(use_openvdm_api=use_openvdm_api)
-        # self.time_format = time_format
 
         if output_dir is not None and not os.path.isdir(output_dir):
             raise FileNotFoundError("Output directory does not exist")
@@ -74,7 +69,7 @@ class GeoTIFFParser(OpenVDMParser):
 
             collection_system_dir = directoryname.replace(os.path.join(data_warehouse_config['shipboardDataWarehouseBaseDir'], cruise_id), '').lstrip('/')
             self.output_dir = os.path.join(data_warehouse_config['shipboardDataWarehouseBaseDir'], cruise_id, dashboard_data_dir, collection_system_dir)
-            self.tile_dir = cruise_id + '/' + dashboard_data_dir + '/' + collection_system_dir + '/' + label
+            self.tile_dir = f'{cruise_id}/{dashboard_data_dir}/{collection_system_dir}/{label}'
 
         elif self.output_dir is None:
             self.output_dir = directoryname
@@ -89,7 +84,7 @@ class GeoTIFFParser(OpenVDMParser):
         # Create temp directory
         tmpdir = tempfile.mkdtemp()
 
-        ll_filepath = os.path.join(tmpdir, label + "_LL.tif")
+        ll_filepath = os.path.join(tmpdir, f'{label}_LL.tif')
         vrt_filepath = os.path.join(tmpdir, 'temp.vrt')
 
         t_srs_options = "+proj=latlong +datum=WGS84"
@@ -132,7 +127,7 @@ class GeoTIFFParser(OpenVDMParser):
         visualizer_data_obj = {
             "label": label,
             "tileDirectory": self.tile_dir,
-            "mapBounds":str(minx) + "," + str(miny) + "," + str(maxx) + "," + str(maxy)
+            "mapBounds":f'{minx},{miny},{maxx},{maxy}'
         }
         self.add_visualization_data(visualizer_data_obj)
 

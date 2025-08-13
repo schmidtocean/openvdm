@@ -21,7 +21,7 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
                     <li class=""><a id="main" href="<?php echo DIR; ?>config">Main</a></li>
                     <li class=""><a id="collectionSystemTransfers" href="<?php echo DIR; ?>config/collectionSystemTransfers">Collection System Transfers</a></li>
                     <li class=""><a id="extraDirectories" href="<?php echo DIR; ?>config/extraDirectories">Extra Directories</a></li>
-                    <li class="active"><a id="cruiseDataTransfers" href="<?php echo DIR; ?>config/cruiseDataTransfers"><?php echo CRUISE_NAME; ?> Data Transfers</a></li>
+                    <li class="active"><a id="cruiseDataTransfers" href="<?php echo DIR; ?>config/cruiseDataTransfers<?php echo $data['filter'] ? '?filter='.$data['filter'] : '';?>"><?php echo CRUISE_NAME; ?> Data Transfers</a></li>
                     <li class=""><a id="shipToShoreTransfers" href="<?php echo DIR; ?>config/shipToShoreTransfers">Ship-to-Shore Transfers</a></li>
                     <li class=""><a id="system" href="<?php echo DIR; ?>config/system">System</a></li>
                 </ul>
@@ -42,7 +42,7 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
                                 <div class="form-group"><label>Include OpenVDM generated files?</label><?php echo FormCustom::radioInline($data['includeOVDMFilesOptions'], $data['row'][0]->includeOVDMFiles); ?></div>
                                 <div class="form-group"><label>Skip empty directories (-m)?</label><?php echo FormCustom::radioInline($data['skipEmptyDirsOptions'], $data['row'][0]->skipEmptyDirs); ?></div>
                                 <div class="form-group"><label>Skip empty files (--min-size=0)?</label><?php echo FormCustom::radioInline($data['skipEmptyFilesOptions'], $data['row'][0]->skipEmptyFiles); ?></div>
-                                <div class="form-group"><label>Sync with destination directory (--delete)?</label><?php echo FormCustom::radioInline($data['syncToDestOptions'], $data['row'][0]->syncToDest); ?></div>
+                                <div class="form-group"><label>Sync with source directory (--delete)?</label><?php echo FormCustom::radioInline($data['syncToDestOptions'], $data['row'][0]->syncToDest); ?></div>
                                 <div class="form-group"><label>Transfer bandwidth limit (in kB/s): <?php echo Form::input( array('name'=>'bandwidthLimit', 'value'=> $data['row'][0]->bandwidthLimit, 'size'=>'7', 'length'=>'8')); ?></label></div>
                                 <div class="form-group"><label>Transfer Type</label><?php echo FormCustom::radioInline($data['transferTypeOptions'], $data['row'][0]->transferType); ?></div>
                                 <div class="form-group"><label>Destination Directory</label><?php echo Form::input( array('class'=>'form-control', 'name'=>'destDir', 'value'=> $data['row'][0]->destDir)); ?></div>
@@ -63,7 +63,10 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
 ?>
                                 <div class="form-group">
                                     <label for='excludedCollectionSystems[]'>Select any Collection Systems to EXCLUDE:</label>
-                                    <div class="checkbox">
+                                    <div>
+                                      <input type="checkbox" id="selectAllCS" /> Select All
+                                    </div>
+                                    <div id='excludedCollectionSystems' class="checkbox">
 <?php
         foreach ($data['collectionSystemTransfers'] as $key => $value) {
 ?>
@@ -71,7 +74,7 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
                                         <?php echo $value->longName;?></label></br>
 <?php
         }
-?>  
+?>
                                     </div>
                                 </div>
 <?php
@@ -87,7 +90,10 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
 ?>
                                 <div class="form-group">
                                     <label for='excludedExtraDirectories[]'>Select any Extra Directories to EXCLUDE:</label>
-                                    <div class="checkbox">
+                                    <div>
+                                      <input type="checkbox" id="selectAllED" /> Select All
+                                    </div>
+                                    <div id='excludedExtraDirectories' class="checkbox">
 <?php
         foreach ($data['extraDirectories'] as $key => $value) {
 ?>
@@ -95,7 +101,7 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
                                         <?php echo $value->longName;?></label></br>
 <?php
         }
-?>  
+?>
                                     </div>
                                 </div>
 <?php
@@ -104,13 +110,13 @@ $data['row'][0]->excludedExtraDirectories = explode(',', $data['row'][0]->exclud
                                 <input type="hidden" name="excludedExtraDirectories[]" value="0">
 <?php
     }
-?>  
+?>
                             </div>
                         </div>
                         <div class="row">
                             <div class="col-lg-12">
                                 <?php echo Form::submit( array('name'=>'submit', 'class'=>'btn btn-primary', 'value'=>'Update')); ?>
-                                <a href="<?php echo DIR; ?>config/cruiseDataTransfers" class="btn btn-danger">Cancel</a>
+                                <a href="<?php echo DIR; ?>config/cruiseDataTransfers<?php echo $data['filter'] ? '?filter='.$data['filter'] : '';?>" class="btn btn-danger">Cancel</a>
                                 <?php echo Form::submit( array( 'name'=>'inlineTest', 'class'=>'btn btn-primary pull-right', 'value'=>'Test Setup')); ?>
                             </div>
                         </div>
