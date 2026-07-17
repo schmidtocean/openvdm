@@ -5,32 +5,33 @@ Reads timestamped CSV records and extracts latitude/longitude track positions,
 computing velocity from successive fixes and producing a GeoJSON FeatureCollection.
 """
 
-import json
 import logging
 import sys
 from os.path import dirname, realpath
-from geopy import Point
-from geopy.distance import great_circle
 import numpy as np
 import pandas as pd
+from geopy import Point
+from geopy.distance import great_circle
 
 sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
+FIELDS = [
+    'hdr', 'roll', 'pitch', 'heading', 'orientation_status',
+    'latitude', 'longitude', 'position_status', 'velocity_fwd',
+    'velocity_stbd', 'velocity_down', 'altitude', 'altitude_status',
+    'depth', 'depth_used',
+]
 PROC_COLS = ['date_time', 'latitude', 'longitude']
-
-FIELDS = ['hdr', 'roll', 'pitch', 'heading', 'orientation_status', 'latitude', 'longitude',
-          'position_status', 'velocity_fwd', 'velocity_stbd', 'velocity_down',
-          'altitude', 'altitude_status', 'depth', 'depth_used']
 
 ROUNDING = {
     'latitude': 8,
     'longitude': 8,
-    'velocity': 3
+    'velocity': 3,
 }
 
-MAX_VELOCITY = 10
+MAX_VELOCITY = 10  # max plausible vessel speed in knots
 
 
 class SprintParser(OpenVDMCSVParser):
@@ -48,43 +49,36 @@ class SprintParser(OpenVDMCSVParser):
         """Parse a Sprint navigation data file."""
         raw_data = {col: [] for col in self.proc_cols}
         errors = []
-
         try:
             for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
-                logging.debug("%s%s%s", timestamp_str, self.timestamp_separator, remainder)
                 field_data = dict(zip(FIELDS, fields))
-
                 try:
                     latitude = float(field_data['latitude']) if field_data.get('latitude', '').strip() else None
                     longitude = float(field_data['longitude']) if field_data.get('longitude', '').strip() else None
-
                     # lat=0, lon=0 indicates a bad fix
                     if latitude == 0 and longitude == 0:
                         continue
-
                     raw_data['date_time'].append(timestamp_str)
                     raw_data['latitude'].append(latitude)
                     raw_data['longitude'].append(longitude)
-
                 except Exception as err:
                     errors.append(lineno)
-                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
-
+                    logging.debug("Line %s skipped: %s", lineno, err)
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid Sprint data in file: %s", filepath)
+            logging.warning("No valid data in file: %s", filepath)
             return None
 
         df = pd.DataFrame(raw_data)
+        df = df.dropna(thresh=2)
         df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
-        if df['date_time'].isna().all():
-            logging.error("All timestamps could not be parsed; aborting.")
-            return None
         df = df.dropna(subset=['date_time'])
-        df = df.set_index('date_time')
+        if df.empty:
+            logging.warning("Dataframe empty after filtering: %s", filepath)
+            return None
 
         if self.start_dt or self.stop_dt:
             df = self.crop_data(df)
@@ -92,9 +86,10 @@ class SprintParser(OpenVDMCSVParser):
             logging.warning("Dataframe empty after cropping: %s", filepath)
             return None
 
+        df = df.set_index('date_time')
         df['deltaT'] = df.index.to_series().diff()
 
-        logging.info("Computing distances and velocities...")
+        # Compute distance and velocity between consecutive fixes
         df['point'] = df.apply(
             lambda row: Point(latitude=row['latitude'], longitude=row['longitude']), axis=1)
         df['point_next'] = df['point'].shift(1)
@@ -105,16 +100,17 @@ class SprintParser(OpenVDMCSVParser):
         df = df.drop(columns=['point_next', 'point'])
         df['velocity'] = df['distance'] / (df['deltaT'].dt.total_seconds() / 3600)
 
-        logging.info("Tabulating statistics...")
         self.add_row_validity_stat([len(df), len(errors)])
-        self.add_geobounds_stat([round(df['latitude'].max(), ROUNDING['latitude']),
-                                 round(df['longitude'].max(), ROUNDING['longitude']),
-                                 round(df['latitude'].min(), ROUNDING['latitude']),
-                                 round(df['longitude'].min(), ROUNDING['longitude'])])
-        self.add_bounds_stat([round(df['velocity'].min(), ROUNDING['velocity']),
-                              999999.999 if np.isinf(df['velocity'].max())
-                              else round(df['velocity'].max(), ROUNDING['velocity'])],
-                             'Velocity Bounds', 'kts')
+        self.add_geobounds_stat([
+            round(df['latitude'].max(), ROUNDING['latitude']),
+            round(df['longitude'].max(), ROUNDING['longitude']),
+            round(df['latitude'].min(), ROUNDING['latitude']),
+            round(df['longitude'].min(), ROUNDING['longitude']),
+        ])
+        self.add_bounds_stat([
+            round(df['velocity'].min(), ROUNDING['velocity']),
+            999999.999 if np.isinf(df['velocity'].max()) else round(df['velocity'].max(), ROUNDING['velocity']),
+        ], 'Velocity Bounds', 'kts')
         self.add_value_validity_stat([len(df[df['velocity'] <= MAX_VELOCITY]),
                                       len(df[df['velocity'] > MAX_VELOCITY])], 'Velocity Validity')
         self.add_total_value_stat([round(df['distance'].sum(), 3)], 'Distance Traveled', 'nm')
@@ -124,48 +120,54 @@ class SprintParser(OpenVDMCSVParser):
         self.add_value_validity_stat([len(df[df['deltaT'] <= self.MAX_DELTA_T]),
                                       len(df[df['deltaT'] > self.MAX_DELTA_T])], 'DeltaT Validity')
 
-        logging.info("Running quality tests...")
-        quality_checks = [
+        for name, total, bad in [
             ('Rows', len(df) + len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
             ('Velocity', len(df), len(df[df['velocity'] > MAX_VELOCITY])),
-        ]
-        for col, total, bad in quality_checks:
-            error_rate = bad / total
-            if error_rate > 0.25:
-                self.add_quality_test_failed(col)
-            elif error_rate > 0.10:
-                self.add_quality_test_warning(col)
+        ]:
+            rate = bad / total
+            if rate > 0.25:
+                self.add_quality_test_failed(name)
+            elif rate > 0.10:
+                self.add_quality_test_warning(name)
             else:
-                self.add_quality_test_passed(col)
+                self.add_quality_test_passed(name)
 
-        # resample resets index — date_time becomes a column again
         df = self.resample_data(df)
         df = self.round_data(df, ROUNDING)
+        df = df.set_index('date_time')
 
-        logging.info("Building visualization datasets...")
-        events = np.split(df, np.where(np.isnan(df['latitude']))[0])
-        events = [event[~np.isnan(event.latitude)] for event in events
-                  if not isinstance(event, np.ndarray)]
-        events = [event for event in events if not event.empty]
-
-        visualizer_data_obj = {'type': 'FeatureCollection', 'features': []}
-        for event in events:
-            feature = {
+        # Build GeoJSON FeatureCollection with one LineString per continuous track segment
+        geojson = {'type': 'FeatureCollection', 'features': []}
+        coords = []
+        times = []
+        for ts, row in df.iterrows():
+            if pd.isna(row['latitude']) or pd.isna(row['longitude']):
+                if coords:
+                    geojson['features'].append({
+                        'type': 'Feature',
+                        'geometry': {'type': 'LineString', 'coordinates': coords},
+                        'properties': {'coordTimes': times, 'name': filepath},
+                    })
+                coords = []
+                times = []
+            else:
+                ts_obj = pd.Timestamp(ts)
+                if ts_obj.tzinfo is None:
+                    ts_obj = ts_obj.tz_localize('UTC')
+                coords.append([row['longitude'], row['latitude']])
+                times.append(int(ts_obj.timestamp() * 1000))
+        if coords:
+            geojson['features'].append({
                 'type': 'Feature',
-                'geometry': {
-                    'type': 'LineString',
-                    'coordinates': json.loads(event[['longitude', 'latitude']].to_json(orient='values'))
-                },
-                'properties': {
-                    'coordTimes': json.loads(event['date_time'].to_json(orient='values')),
-                    'name': filepath
-                }
-            }
-            visualizer_data_obj['features'].append(feature)
+                'geometry': {'type': 'LineString', 'coordinates': coords},
+                'properties': {'coordTimes': times, 'name': filepath},
+            })
+        self.add_visualization_data(geojson)
 
-        self.add_visualization_data(visualizer_data_obj)
         self.send_error_msg(errors, filepath)
+        self.plugin_data = self._sanitize_for_json(self.plugin_data)
+        return self.plugin_data
 
 
 if __name__ == "__main__":

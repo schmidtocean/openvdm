@@ -5,8 +5,8 @@ Reads timestamped CSV records and extracts roll rate, pitch rate, yaw rate,
 and heave velocity values, producing time-series visualization data and quality statistics.
 """
 
-import sys
 import logging
+import sys
 from os.path import dirname, realpath
 import pandas as pd
 
@@ -14,15 +14,15 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
-PROC_COLS = ['date_time', 'roll_rate', 'pitch_rate', 'yaw_rate', 'heave_velocity']
-
+# The last field contains an NMEA checksum appended with '*': e.g. "0.123*4F"
 FIELDS = ['hdr', 'msg_type', 'roll_rate', 'pitch_rate', 'yaw_rate', 'heave_velocity_checksum']
+PROC_COLS = ['date_time', 'roll_rate', 'pitch_rate', 'yaw_rate', 'heave_velocity']
 
 ROUNDING = {
     'roll_rate': 3,
     'pitch_rate': 3,
     'yaw_rate': 3,
-    'heave_velocity': 3
+    'heave_velocity': 3,
 }
 
 
@@ -41,43 +41,37 @@ class PSXN24Parser(OpenVDMCSVParser):
         """Parse a PSXN,24 data file."""
         raw_data = {col: [] for col in self.proc_cols}
         errors = []
-
         try:
             for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
-                logging.debug("%s%s%s", timestamp_str, self.timestamp_separator, remainder)
                 field_data = dict(zip(FIELDS, fields))
-
                 try:
                     roll_rate = float(field_data['roll_rate'])
                     pitch_rate = float(field_data['pitch_rate'])
                     yaw_rate = float(field_data['yaw_rate'])
+                    # Strip NMEA checksum suffix (e.g. "0.123*4F" → 0.123)
                     heave_velocity = float(field_data['heave_velocity_checksum'].split('*')[0])
-
                     raw_data['date_time'].append(timestamp_str)
                     raw_data['roll_rate'].append(roll_rate)
                     raw_data['pitch_rate'].append(pitch_rate)
                     raw_data['yaw_rate'].append(yaw_rate)
                     raw_data['heave_velocity'].append(heave_velocity)
-
                 except Exception as err:
                     errors.append(lineno)
-                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
-
+                    logging.debug("Line %s skipped: %s", lineno, err)
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid PSXN,24 data in file: %s", filepath)
+            logging.warning("No valid data in file: %s", filepath)
             return None
 
         df = pd.DataFrame(raw_data)
         df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
-        if df['date_time'].isna().all():
-            logging.error("All timestamps could not be parsed; aborting.")
-            return None
         df = df.dropna(subset=['date_time'])
-        df = df.set_index('date_time')
+        if df.empty:
+            logging.warning("Dataframe empty after filtering: %s", filepath)
+            return None
 
         if self.start_dt or self.stop_dt:
             df = self.crop_data(df)
@@ -85,9 +79,9 @@ class PSXN24Parser(OpenVDMCSVParser):
             logging.warning("Dataframe empty after cropping: %s", filepath)
             return None
 
+        df = df.set_index('date_time')
         df['deltaT'] = df.index.to_series().diff()
 
-        logging.info("Tabulating statistics...")
         self.add_row_validity_stat([len(df), len(errors)])
         self.add_time_bounds_stat([df.index.min().to_pydatetime(), df.index.max().to_pydatetime()])
         self.add_bounds_stat([round(df['deltaT'].min().total_seconds(), 3),
@@ -103,42 +97,40 @@ class PSXN24Parser(OpenVDMCSVParser):
         self.add_bounds_stat([round(df['heave_velocity'].min(), ROUNDING['heave_velocity']),
                               round(df['heave_velocity'].max(), ROUNDING['heave_velocity'])], 'Heave Velocity Bounds', 'm/s')
 
-        logging.info("Running quality tests...")
-        quality_checks = [
+        for name, total, bad in [
             ('Rows', len(df) + len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
-        ]
-        for col, total, bad in quality_checks:
-            error_rate = bad / total
-            if error_rate > 0.25:
-                self.add_quality_test_failed(col)
-            elif error_rate > 0.10:
-                self.add_quality_test_warning(col)
+        ]:
+            rate = bad / total
+            if rate > 0.25:
+                self.add_quality_test_failed(name)
+            elif rate > 0.10:
+                self.add_quality_test_warning(name)
             else:
-                self.add_quality_test_passed(col)
+                self.add_quality_test_passed(name)
 
         df = self.resample_data(df)
         df = self.round_data(df, ROUNDING)
         df = df.set_index('date_time')
 
-        logging.info("Building visualization datasets...")
         for col, unit, label in [
             ('yaw_rate', 'deg/s', 'Yaw Rate'),
             ('pitch_rate', 'deg/s', 'Pitch Rate'),
             ('roll_rate', 'deg/s', 'Roll Rate'),
             ('heave_velocity', 'm/s', 'Heave Velocity'),
         ]:
-            visualizer_data_obj = {'data': [], 'unit': unit, 'label': label}
+            viz = {'data': [], 'unit': unit, 'label': label}
             for ts, row in df.iterrows():
                 if pd.notna(row[col]):
-                    ts = pd.Timestamp(ts)
-                    if ts.tzinfo is None:
-                        ts = ts.tz_localize('UTC')
-                    epoch_ms = int(ts.timestamp() * 1000)
-                    visualizer_data_obj['data'].append([epoch_ms, row[col]])
-            self.add_visualization_data(visualizer_data_obj)
+                    ts_obj = pd.Timestamp(ts)
+                    if ts_obj.tzinfo is None:
+                        ts_obj = ts_obj.tz_localize('UTC')
+                    viz['data'].append([int(ts_obj.timestamp() * 1000), row[col]])
+            self.add_visualization_data(viz)
 
         self.send_error_msg(errors, filepath)
+        self.plugin_data = self._sanitize_for_json(self.plugin_data)
+        return self.plugin_data
 
 
 if __name__ == "__main__":

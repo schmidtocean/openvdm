@@ -6,8 +6,8 @@ conductivity, water temperature, salinity, fluorescence, and sound velocity valu
 producing time-series visualization data and quality statistics.
 """
 
-import sys
 import logging
+import sys
 from os.path import dirname, realpath
 import pandas as pd
 
@@ -15,23 +15,24 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
+# Lines contain: <timestamp>,<data> where <data> is space-separated:
+# conductivity water_temp_1 salinity water_temp_2 fluorescence sound_velocity
+FIELDS = ['data']
 PROC_COLS = ['date_time', 'conductivity', 'water_temp_1', 'salinity',
              'water_temp_2', 'fluorescence', 'sound_velocity']
-
-FIELDS = ['raw_data']
 
 ROUNDING = {
     'conductivity': 4,
     'water_temp_1': 4,
     'salinity': 4,
     'water_temp_2': 4,
-    'fluorescence': 4,
-    'sound_velocity': 3
+    'fluorescence': 5,
+    'sound_velocity': 5,
 }
 
 
 class TSG21Parser(OpenVDMCSVParser):
-    """Parser for TSG21 thermosalinograph data files."""
+    """Parser for TSG21 (SBE21) thermosalinograph data files."""
 
     MAX_DELTA_T = pd.Timedelta('10 seconds')
 
@@ -45,21 +46,18 @@ class TSG21Parser(OpenVDMCSVParser):
         """Parse a TSG21 data file."""
         raw_data = {col: [] for col in self.proc_cols}
         errors = []
-
         try:
             for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
-                logging.debug("%s%s%s", timestamp_str, self.timestamp_separator, remainder)
-                field_data = dict(zip(FIELDS, fields))
-
                 try:
-                    parts = field_data['raw_data'].strip().split()
-                    conductivity = float(parts[0])
-                    water_temp_1 = float(parts[1])
-                    salinity = float(parts[2])
-                    water_temp_2 = float(parts[3])
-                    fluorescence = float(parts[4])
-                    sound_velocity = float(parts[5])
-
+                    # remainder is the space-separated data blob
+                    sub_fields = remainder.split()
+                    data_cont, data_temp_1, data_sal, data_temp_2, data_fluoro, data_sv = sub_fields
+                    conductivity = float(data_cont)
+                    water_temp_1 = float(data_temp_1)
+                    salinity = float(data_sal)
+                    water_temp_2 = float(data_temp_2)
+                    fluorescence = float(data_fluoro)
+                    sound_velocity = float(data_sv)
                     raw_data['date_time'].append(timestamp_str)
                     raw_data['conductivity'].append(conductivity)
                     raw_data['water_temp_1'].append(water_temp_1)
@@ -67,26 +65,23 @@ class TSG21Parser(OpenVDMCSVParser):
                     raw_data['water_temp_2'].append(water_temp_2)
                     raw_data['fluorescence'].append(fluorescence)
                     raw_data['sound_velocity'].append(sound_velocity)
-
                 except Exception as err:
                     errors.append(lineno)
-                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
-
+                    logging.debug("Line %s skipped: %s", lineno, err)
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid TSG21 data in file: %s", filepath)
+            logging.warning("No valid data in file: %s", filepath)
             return None
 
         df = pd.DataFrame(raw_data)
         df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
-        if df['date_time'].isna().all():
-            logging.error("All timestamps could not be parsed; aborting.")
-            return None
         df = df.dropna(subset=['date_time'])
-        df = df.set_index('date_time')
+        if df.empty:
+            logging.warning("Dataframe empty after filtering: %s", filepath)
+            return None
 
         if self.start_dt or self.stop_dt:
             df = self.crop_data(df)
@@ -94,9 +89,9 @@ class TSG21Parser(OpenVDMCSVParser):
             logging.warning("Dataframe empty after cropping: %s", filepath)
             return None
 
+        df = df.set_index('date_time')
         df['deltaT'] = df.index.to_series().diff()
 
-        logging.info("Tabulating statistics...")
         self.add_row_validity_stat([len(df), len(errors)])
         self.add_time_bounds_stat([df.index.min().to_pydatetime(), df.index.max().to_pydatetime()])
         self.add_bounds_stat([round(df['deltaT'].min().total_seconds(), 3),
@@ -104,54 +99,54 @@ class TSG21Parser(OpenVDMCSVParser):
         self.add_value_validity_stat([len(df[df['deltaT'] <= self.MAX_DELTA_T]),
                                       len(df[df['deltaT'] > self.MAX_DELTA_T])], 'DeltaT Validity')
         self.add_bounds_stat([round(df['conductivity'].min(), ROUNDING['conductivity']),
-                              round(df['conductivity'].max(), ROUNDING['conductivity'])], 'Conductivity Bounds', 'S/m')
+                              round(df['conductivity'].max(), ROUNDING['conductivity'])], 'Conductivity', 'S/m')
         self.add_bounds_stat([round(df['water_temp_1'].min(), ROUNDING['water_temp_1']),
-                              round(df['water_temp_1'].max(), ROUNDING['water_temp_1'])], 'Water Temp 1 Bounds', 'C')
+                              round(df['water_temp_1'].max(), ROUNDING['water_temp_1'])], 'Water Temp 1', 'C')
         self.add_bounds_stat([round(df['salinity'].min(), ROUNDING['salinity']),
-                              round(df['salinity'].max(), ROUNDING['salinity'])], 'Salinity Bounds', 'ppt')
+                              round(df['salinity'].max(), ROUNDING['salinity'])], 'Salinity', 'ppt')
         self.add_bounds_stat([round(df['water_temp_2'].min(), ROUNDING['water_temp_2']),
-                              round(df['water_temp_2'].max(), ROUNDING['water_temp_2'])], 'Water Temp 2 Bounds', 'C')
+                              round(df['water_temp_2'].max(), ROUNDING['water_temp_2'])], 'Water Temp 2', 'C')
+        self.add_bounds_stat([round(df['fluorescence'].min(), ROUNDING['fluorescence']),
+                              round(df['fluorescence'].max(), ROUNDING['fluorescence'])], 'Fluorescence', 'mg/m^3')
         self.add_bounds_stat([round(df['sound_velocity'].min(), ROUNDING['sound_velocity']),
-                              round(df['sound_velocity'].max(), ROUNDING['sound_velocity'])], 'Sound Velocity Bounds', 'm/s')
+                              round(df['sound_velocity'].max(), ROUNDING['sound_velocity'])], 'Sound Velocity', 'm/s')
 
-        logging.info("Running quality tests...")
-        quality_checks = [
+        for name, total, bad in [
             ('Rows', len(df) + len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
-        ]
-        for col, total, bad in quality_checks:
-            error_rate = bad / total
-            if error_rate > 0.25:
-                self.add_quality_test_failed(col)
-            elif error_rate > 0.10:
-                self.add_quality_test_warning(col)
+        ]:
+            rate = bad / total
+            if rate > 0.25:
+                self.add_quality_test_failed(name)
+            elif rate > 0.10:
+                self.add_quality_test_warning(name)
             else:
-                self.add_quality_test_passed(col)
+                self.add_quality_test_passed(name)
 
         df = self.resample_data(df)
         df = self.round_data(df, ROUNDING)
         df = df.set_index('date_time')
 
-        logging.info("Building visualization datasets...")
         for col, unit, label in [
             ('conductivity', 'S/m', 'Conductivity'),
-            ('water_temp_1', 'C', 'Water Temperature 1'),
+            ('water_temp_1', 'C', 'Water Temp 1'),
             ('salinity', 'ppt', 'Salinity'),
-            ('water_temp_2', 'C', 'Water Temperature 2'),
-            ('fluorescence', 'mg/m3', 'Fluorescence'),
+            ('water_temp_2', 'C', 'Water Temp 2'),
+            ('fluorescence', 'mg/m^3', 'Fluorescence'),
             ('sound_velocity', 'm/s', 'Sound Velocity'),
         ]:
-            visualizer_data_obj = {'data': [], 'unit': unit, 'label': label}
+            viz = {'data': [], 'unit': unit, 'label': label}
             for ts, row in df.iterrows():
                 if pd.notna(row[col]):
-                    ts = pd.Timestamp(ts)
-                    if ts.tzinfo is None:
-                        ts = ts.tz_localize('UTC')
-                    epoch_ms = int(ts.timestamp() * 1000)
-                    visualizer_data_obj['data'].append([epoch_ms, row[col]])
-            self.add_visualization_data(visualizer_data_obj)
+                    ts_obj = pd.Timestamp(ts)
+                    if ts_obj.tzinfo is None:
+                        ts_obj = ts_obj.tz_localize('UTC')
+                    viz['data'].append([int(ts_obj.timestamp() * 1000), row[col]])
+            self.add_visualization_data(viz)
 
         self.send_error_msg(errors, filepath)
+        self.plugin_data = self._sanitize_for_json(self.plugin_data)
+        return self.plugin_data
 
 
 if __name__ == "__main__":

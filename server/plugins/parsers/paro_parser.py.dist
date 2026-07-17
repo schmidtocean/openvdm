@@ -5,8 +5,8 @@ Reads timestamped CSV records and extracts depth values, producing time-series
 visualization data and quality statistics including depth validity checks.
 """
 
-import sys
 import logging
+import sys
 from os.path import dirname, realpath
 import pandas as pd
 
@@ -14,12 +14,11 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
+FIELDS = ['hdr', 'depth', 'extra']
 PROC_COLS = ['date_time', 'depth']
 
-FIELDS = ['hdr', 'depth', 'extra']
-
 ROUNDING = {
-    'depth': 3
+    'depth': 3,
 }
 
 MIN_DEPTH = 0
@@ -40,37 +39,30 @@ class ParoParser(OpenVDMCSVParser):
         """Parse a Paroscientific depth sensor data file."""
         raw_data = {col: [] for col in self.proc_cols}
         errors = []
-
         try:
             for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
-                logging.debug("%s%s%s", timestamp_str, self.timestamp_separator, remainder)
                 field_data = dict(zip(FIELDS, fields))
-
                 try:
                     depth = float(field_data['depth']) if field_data.get('depth', '').strip() else None
-
                     raw_data['date_time'].append(timestamp_str)
                     raw_data['depth'].append(depth)
-
                 except Exception as err:
                     errors.append(lineno)
-                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
-
+                    logging.debug("Line %s skipped: %s", lineno, err)
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid Paro depth data in file: %s", filepath)
+            logging.warning("No valid data in file: %s", filepath)
             return None
 
         df = pd.DataFrame(raw_data)
         df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
-        if df['date_time'].isna().all():
-            logging.error("All timestamps could not be parsed; aborting.")
-            return None
         df = df.dropna(subset=['date_time'])
-        df = df.set_index('date_time')
+        if df.empty:
+            logging.warning("Dataframe empty after filtering: %s", filepath)
+            return None
 
         if self.start_dt or self.stop_dt:
             df = self.crop_data(df)
@@ -78,11 +70,11 @@ class ParoParser(OpenVDMCSVParser):
             logging.warning("Dataframe empty after cropping: %s", filepath)
             return None
 
+        df = df.set_index('date_time')
         df['deltaT'] = df.index.to_series().diff()
 
         df_valid = df.dropna(subset=['depth'])
 
-        logging.info("Tabulating statistics...")
         self.add_row_validity_stat([len(df), len(errors)])
         self.add_time_bounds_stat([df.index.min().to_pydatetime(), df.index.max().to_pydatetime()])
         self.add_bounds_stat([round(df['deltaT'].min().total_seconds(), 3),
@@ -95,7 +87,6 @@ class ParoParser(OpenVDMCSVParser):
             self.add_value_validity_stat([len(df_valid[df_valid['depth'] >= MIN_DEPTH]),
                                           len(df_valid[df_valid['depth'] < MIN_DEPTH])], 'Depth Validity')
 
-        logging.info("Running quality tests...")
         quality_checks = [
             ('Rows', len(df) + len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
@@ -103,32 +94,31 @@ class ParoParser(OpenVDMCSVParser):
         if not df_valid.empty:
             quality_checks.append(('Depth', len(df_valid), len(df_valid[df_valid['depth'] < MIN_DEPTH])))
 
-        for col, total, bad in quality_checks:
-            error_rate = bad / total
-            if error_rate > 0.25:
-                self.add_quality_test_failed(col)
-            elif error_rate > 0.10:
-                self.add_quality_test_warning(col)
+        for name, total, bad in quality_checks:
+            rate = bad / total
+            if rate > 0.25:
+                self.add_quality_test_failed(name)
+            elif rate > 0.10:
+                self.add_quality_test_warning(name)
             else:
-                self.add_quality_test_passed(col)
+                self.add_quality_test_passed(name)
 
         df = self.resample_data(df)
         df = self.round_data(df, ROUNDING)
         df = df.set_index('date_time')
 
-        logging.info("Building visualization datasets...")
-        for col, unit, label in [('depth', 'm', 'Depth')]:
-            visualizer_data_obj = {'data': [], 'unit': unit, 'label': label}
-            for ts, row in df.iterrows():
-                if pd.notna(row[col]):
-                    ts = pd.Timestamp(ts)
-                    if ts.tzinfo is None:
-                        ts = ts.tz_localize('UTC')
-                    epoch_ms = int(ts.timestamp() * 1000)
-                    visualizer_data_obj['data'].append([epoch_ms, row[col]])
-            self.add_visualization_data(visualizer_data_obj)
+        viz = {'data': [], 'unit': 'm', 'label': 'Depth'}
+        for ts, row in df.iterrows():
+            if pd.notna(row['depth']):
+                ts_obj = pd.Timestamp(ts)
+                if ts_obj.tzinfo is None:
+                    ts_obj = ts_obj.tz_localize('UTC')
+                viz['data'].append([int(ts_obj.timestamp() * 1000), row['depth']])
+        self.add_visualization_data(viz)
 
         self.send_error_msg(errors, filepath)
+        self.plugin_data = self._sanitize_for_json(self.plugin_data)
+        return self.plugin_data
 
 
 if __name__ == "__main__":

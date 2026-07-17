@@ -5,8 +5,8 @@ Reads timestamped CSV records and extracts oxygen concentration, temperature,
 and air saturation values, producing time-series visualization data and quality statistics.
 """
 
-import sys
 import logging
+import sys
 from os.path import dirname, realpath
 import pandas as pd
 
@@ -14,14 +14,13 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
-PROC_COLS = ['date_time', 'abs_value', 'temp', 'airsat']
-
 FIELDS = ['hdr', 'abs_value', 'temp', 'airsat']
+PROC_COLS = ['date_time', 'abs_value', 'temp', 'airsat']
 
 ROUNDING = {
     'abs_value': 3,
     'temp': 3,
-    'airsat': 3
+    'airsat': 3,
 }
 
 
@@ -40,41 +39,34 @@ class O2Parser(OpenVDMCSVParser):
         """Parse a dissolved oxygen sensor data file."""
         raw_data = {col: [] for col in self.proc_cols}
         errors = []
-
         try:
             for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
-                logging.debug("%s%s%s", timestamp_str, self.timestamp_separator, remainder)
                 field_data = dict(zip(FIELDS, fields))
-
                 try:
                     abs_value = float(field_data['abs_value']) if field_data.get('abs_value', '').strip() else None
                     temp = float(field_data['temp']) if field_data.get('temp', '').strip() else None
                     airsat = float(field_data['airsat']) if field_data.get('airsat', '').strip() else None
-
                     raw_data['date_time'].append(timestamp_str)
                     raw_data['abs_value'].append(abs_value)
                     raw_data['temp'].append(temp)
                     raw_data['airsat'].append(airsat)
-
                 except Exception as err:
                     errors.append(lineno)
-                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
-
+                    logging.debug("Line %s skipped: %s", lineno, err)
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid O2 data in file: %s", filepath)
+            logging.warning("No valid data in file: %s", filepath)
             return None
 
         df = pd.DataFrame(raw_data)
         df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
-        if df['date_time'].isna().all():
-            logging.error("All timestamps could not be parsed; aborting.")
-            return None
         df = df.dropna(subset=['date_time'])
-        df = df.set_index('date_time')
+        if df.empty:
+            logging.warning("Dataframe empty after filtering: %s", filepath)
+            return None
 
         if self.start_dt or self.stop_dt:
             df = self.crop_data(df)
@@ -82,9 +74,9 @@ class O2Parser(OpenVDMCSVParser):
             logging.warning("Dataframe empty after cropping: %s", filepath)
             return None
 
+        df = df.set_index('date_time')
         df['deltaT'] = df.index.to_series().diff()
 
-        logging.info("Tabulating statistics...")
         self.add_row_validity_stat([len(df), len(errors)])
         self.add_time_bounds_stat([df.index.min().to_pydatetime(), df.index.max().to_pydatetime()])
         self.add_bounds_stat([round(df['deltaT'].min().total_seconds(), 3),
@@ -98,41 +90,39 @@ class O2Parser(OpenVDMCSVParser):
         self.add_bounds_stat([round(df['airsat'].min(), ROUNDING['airsat']),
                               round(df['airsat'].max(), ROUNDING['airsat'])], 'Saturation Bounds', '%')
 
-        logging.info("Running quality tests...")
-        quality_checks = [
+        for name, total, bad in [
             ('Rows', len(df) + len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
-        ]
-        for col, total, bad in quality_checks:
-            error_rate = bad / total
-            if error_rate > 0.25:
-                self.add_quality_test_failed(col)
-            elif error_rate > 0.10:
-                self.add_quality_test_warning(col)
+        ]:
+            rate = bad / total
+            if rate > 0.25:
+                self.add_quality_test_failed(name)
+            elif rate > 0.10:
+                self.add_quality_test_warning(name)
             else:
-                self.add_quality_test_passed(col)
+                self.add_quality_test_passed(name)
 
         df = self.resample_data(df)
         df = self.round_data(df, ROUNDING)
         df = df.set_index('date_time')
 
-        logging.info("Building visualization datasets...")
         for col, unit, label in [
             ('abs_value', 'μM', 'ABS Value'),
             ('temp', 'C', 'Temperature'),
             ('airsat', '%', 'Saturation'),
         ]:
-            visualizer_data_obj = {'data': [], 'unit': unit, 'label': label}
+            viz = {'data': [], 'unit': unit, 'label': label}
             for ts, row in df.iterrows():
                 if pd.notna(row[col]):
-                    ts = pd.Timestamp(ts)
-                    if ts.tzinfo is None:
-                        ts = ts.tz_localize('UTC')
-                    epoch_ms = int(ts.timestamp() * 1000)
-                    visualizer_data_obj['data'].append([epoch_ms, row[col]])
-            self.add_visualization_data(visualizer_data_obj)
+                    ts_obj = pd.Timestamp(ts)
+                    if ts_obj.tzinfo is None:
+                        ts_obj = ts_obj.tz_localize('UTC')
+                    viz['data'].append([int(ts_obj.timestamp() * 1000), row[col]])
+            self.add_visualization_data(viz)
 
         self.send_error_msg(errors, filepath)
+        self.plugin_data = self._sanitize_for_json(self.plugin_data)
+        return self.plugin_data
 
 
 if __name__ == "__main__":

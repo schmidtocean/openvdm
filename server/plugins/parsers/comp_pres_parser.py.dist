@@ -5,8 +5,8 @@ Reads timestamped CSV records and extracts up to six compensator channel reading
 producing time-series visualization data and quality statistics.
 """
 
-import sys
 import logging
+import sys
 from os.path import dirname, realpath
 import pandas as pd
 
@@ -14,9 +14,8 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
-PROC_COLS = ['date_time', 'comp1', 'comp2', 'comp3', 'comp4', 'comp5', 'comp6']
-
 FIELDS = ['hdr', 'comp1', 'comp2', 'comp3', 'comp4', 'comp5', 'comp6']
+PROC_COLS = ['date_time', 'comp1', 'comp2', 'comp3', 'comp4', 'comp5', 'comp6']
 
 ROUNDING = {
     'comp1': 3,
@@ -24,7 +23,7 @@ ROUNDING = {
     'comp3': 3,
     'comp4': 3,
     'comp5': 3,
-    'comp6': 3
+    'comp6': 3,
 }
 
 
@@ -43,12 +42,9 @@ class CompPresParser(OpenVDMCSVParser):
         """Parse a compensator pressure sensor data file."""
         raw_data = {col: [] for col in self.proc_cols}
         errors = []
-
         try:
             for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
-                logging.debug("%s%s%s", timestamp_str, self.timestamp_separator, remainder)
                 field_data = dict(zip(FIELDS, fields))
-
                 try:
                     comp1 = float(field_data['comp1']) if field_data.get('comp1', '').strip() else None
                     comp2 = float(field_data['comp2']) if field_data.get('comp2', '').strip() else None
@@ -56,7 +52,6 @@ class CompPresParser(OpenVDMCSVParser):
                     comp4 = float(field_data['comp4']) if field_data.get('comp4', '').strip() else None
                     comp5 = float(field_data['comp5']) if field_data.get('comp5', '').strip() else None
                     comp6 = float(field_data['comp6']) if field_data.get('comp6', '').strip() else None
-
                     raw_data['date_time'].append(timestamp_str)
                     raw_data['comp1'].append(comp1)
                     raw_data['comp2'].append(comp2)
@@ -64,26 +59,23 @@ class CompPresParser(OpenVDMCSVParser):
                     raw_data['comp4'].append(comp4)
                     raw_data['comp5'].append(comp5)
                     raw_data['comp6'].append(comp6)
-
                 except Exception as err:
                     errors.append(lineno)
-                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
-
+                    logging.debug("Line %s skipped: %s", lineno, err)
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid compensator data in file: %s", filepath)
+            logging.warning("No valid data in file: %s", filepath)
             return None
 
         df = pd.DataFrame(raw_data)
         df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
-        if df['date_time'].isna().all():
-            logging.error("All timestamps could not be parsed; aborting.")
-            return None
         df = df.dropna(subset=['date_time'])
-        df = df.set_index('date_time')
+        if df.empty:
+            logging.warning("Dataframe empty after filtering: %s", filepath)
+            return None
 
         if self.start_dt or self.stop_dt:
             df = self.crop_data(df)
@@ -91,9 +83,9 @@ class CompPresParser(OpenVDMCSVParser):
             logging.warning("Dataframe empty after cropping: %s", filepath)
             return None
 
+        df = df.set_index('date_time')
         df['deltaT'] = df.index.to_series().diff()
 
-        logging.info("Tabulating statistics...")
         self.add_row_validity_stat([len(df), len(errors)])
         self.add_time_bounds_stat([df.index.min().to_pydatetime(), df.index.max().to_pydatetime()])
         self.add_bounds_stat([round(df['deltaT'].min().total_seconds(), 3),
@@ -107,37 +99,35 @@ class CompPresParser(OpenVDMCSVParser):
                                       round(df_valid[col].max(), ROUNDING[col])],
                                      f'Compensator {i}', 'psi')
 
-        logging.info("Running quality tests...")
-        quality_checks = [
+        for name, total, bad in [
             ('Rows', len(df) + len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
-        ]
-        for col, total, bad in quality_checks:
-            error_rate = bad / total
-            if error_rate > 0.25:
-                self.add_quality_test_failed(col)
-            elif error_rate > 0.10:
-                self.add_quality_test_warning(col)
+        ]:
+            rate = bad / total
+            if rate > 0.25:
+                self.add_quality_test_failed(name)
+            elif rate > 0.10:
+                self.add_quality_test_warning(name)
             else:
-                self.add_quality_test_passed(col)
+                self.add_quality_test_passed(name)
 
         df = self.resample_data(df)
         df = self.round_data(df, ROUNDING)
         df = df.set_index('date_time')
 
-        logging.info("Building visualization datasets...")
         for i, col in enumerate(['comp1', 'comp2', 'comp3', 'comp4', 'comp5', 'comp6'], start=1):
-            visualizer_data_obj = {'data': [], 'unit': 'psi', 'label': f'Compensator {i}'}
+            viz = {'data': [], 'unit': 'psi', 'label': f'Compensator {i}'}
             for ts, row in df.iterrows():
                 if pd.notna(row[col]):
-                    ts = pd.Timestamp(ts)
-                    if ts.tzinfo is None:
-                        ts = ts.tz_localize('UTC')
-                    epoch_ms = int(ts.timestamp() * 1000)
-                    visualizer_data_obj['data'].append([epoch_ms, row[col]])
-            self.add_visualization_data(visualizer_data_obj)
+                    ts_obj = pd.Timestamp(ts)
+                    if ts_obj.tzinfo is None:
+                        ts_obj = ts_obj.tz_localize('UTC')
+                    viz['data'].append([int(ts_obj.timestamp() * 1000), row[col]])
+            self.add_visualization_data(viz)
 
         self.send_error_msg(errors, filepath)
+        self.plugin_data = self._sanitize_for_json(self.plugin_data)
+        return self.plugin_data
 
 
 if __name__ == "__main__":

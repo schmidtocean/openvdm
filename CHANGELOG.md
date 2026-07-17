@@ -4,6 +4,28 @@ All notable changes to OpenVDM are documented here, organized by release tag aga
 
 ---
 
+## [2.15.3] – 2026-06-23
+
+### Fixed
+- `postFinalizeCurrentCruise` hooks now run before Cruise Data Transfers so files they produce are included in transfers (closes #102)
+- Fix PHP warning when `DATA_ROOT` is unreadable by the web server (`scandir` now guarded with `is_readable`)
+- Fix `chcon` errors on SELinux-disabled systems or NFS-mounted `DATA_ROOT`
+- Enable `httpd_use_cifs` SELinux boolean on RHEL-based installs to allow Apache to read SMB-mounted directories
+- Set SELinux context on `/var/log/openvdm` so Apache can read transfer logs on RHEL-based installs
+
+---
+
+## [2.15.2] – 2026-06-19
+
+### Changed
+- Migrate `build_lowering_tracks` and `build_overlay_layers` workers to `build_cruise_tracks` architecture
+- Migrate legacy parsers to `read_lines_with_timestamps` architecture (closes #100)
+
+### Fixed
+- Fix install script for Ubuntu 26.04: dynamic PHP version detection and MySQL fallback
+
+---
+
 ## [2.15.1] – 2026-06-09
 
 ### Fixed
