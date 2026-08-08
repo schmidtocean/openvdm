@@ -72,6 +72,7 @@
 #  - leaflet
 #  - charts
 #  - charts-zoom
+#  - leaflet
 
 # Placeholders are the bootstrap-styled panels that contain the <div> blocks where data
 # will be visualized that are rendered by the view.
@@ -98,6 +99,55 @@
 #      visType: tms
 #
 
+- title: Lowerings
+  page: vehicle
+  view: lowering
+  cssArray:
+  - leaflet
+  jsArray:
+  - dataDashboardDefault
+  - charts
+  - charts-zoom
+  - leaflet
+  - lowering
+  placeholderArray:
+  - plotType: map
+    id: map
+    heading: Position
+    dataArray:
+    - dataType: rov-usbl-pri
+      visType: geoJSON
+    - dataType: rov-usbl-sec
+      visType: geoJSON
+    - dataType: rov-sprint
+      visType: geoJSON
+    - dataType: geotiff
+      visType: tms
+  - plotType: chart
+    id: rov-comp-pres
+    heading: Comp Pressures
+    dataArray:
+    - dataType: rov-comp-pres
+      visType: json
+  - plotType: chart
+    id: rov-paro
+    heading: Depth
+    dataArray:
+    - dataType: rov-paro
+      visType: json
+  - plotType: chart
+    id: rov-ctd
+    heading: ROV CTD
+    dataArray:
+    - dataType: rov-ctd
+      visType: json
+  - plotType: chart
+    id: rov-o2
+    heading: ROV O2
+    dataArray:
+    - dataType: rov-o2
+      visType: json
+
 - title: Position
   page: position
   view: default
@@ -113,12 +163,10 @@
     id: map
     heading: Position
     dataArray:
-    - dataType: dpsi1-gga
+    - dataType: dps122-gga
       visType: geoJSON
     - dataType: posmv-gga
       visType: geoJSON
-    - dataType: seapath-gga
-      visType: geoJSON 
     - dataType: geotiff
       visType: tms
   # - plotType: chart
@@ -152,12 +200,6 @@
     - dataType: posmv-hdt
       visType: json
   - plotType: chart
-    id: seapath-hdt
-    heading: Seapath - Heading
-    dataArray:
-    - dataType: seapath-hdt
-      visType: json
-  - plotType: chart
     id: posmv-pashr
     heading: POS/MV - Heading, Pitch, Roll, Heave
     dataArray:
@@ -165,21 +207,15 @@
       visType: json
   - plotType: chart
     id: dps122-vtg
-    heading: DPSi1 - COG/SOG
+    heading: DPS122 - COG/SOG
     dataArray:
-    - dataType: dpsi1-vtg
+    - dataType: dps122-vtg
       visType: json
   - plotType: chart
     id: posmv-vtg
     heading: POS/MV - COG/SOG
     dataArray:
     - dataType: posmv-vtg
-      visType: json
-  - plotType: chart
-    id: seapath-vtg
-    heading: Seapath - COG/SOG
-    dataArray:
-    - dataType: seapath-vtg
       visType: json
 
 - title: Weather
@@ -191,22 +227,10 @@
   - charts-zoom
   placeholderArray:
   - plotType: chart
-    id: mpp-fm
-    heading: MetPakPro - Forward Mast
-    dataArray:
-    - dataType: mpp-fm
-      visType: json
-  - plotType: chart
     id: mpp-mm-aft
     heading: MetPakPro - Main Mast - Aft
     dataArray:
     - dataType: mpp-mm-aft
-      visType: json
-  - plotType: chart
-    id: truewind-mpp-fm
-    heading: MMP True Wind - Forward Mast
-    dataArray:
-    - dataType: truewind-mpp-fm
       visType: json
   - plotType: chart
     id: truewind-mpp-mm-aft
@@ -224,23 +248,17 @@
   - charts-zoom
   placeholderArray:
   # - plotType: chart
-  #   id: tsg
+  #   id: seawater-system
   #   heading: Thermosalinograph Sensor
   #   dataArray:
-  #   - dataType: tsg
+  #   - dataType: seawater-system
   #     visType: json
-  - plotType: chart
-    id: fluoro_1
-    heading: Fluorometer 1
-    dataArray:
-    - dataType: fluoro_1
-      visType: json
-  - plotType: chart
-    id: fluoro_2
-    heading: Fluorometer 2
-    dataArray:
-    - dataType: fluoro_2
-      visType: json
+  # - plotType: chart
+  #   id: fluorometer
+  #   heading: Fluorometer
+  #   dataArray:
+  #   - dataType: fluorometer
+  #     visType: json
   - plotType: chart
     id: ea440-dpt
     heading: EA440 - DPT
@@ -284,12 +302,6 @@
     - dataType: em712-dpt
       visType: json
   - plotType: chart
-    id: minisvs-aft
-    heading: MiniSVS - Aft
-    dataArray:
-    - dataType: minisvs-aft
-      visType: json
-  - plotType: chart
     id: minisvs-fwd
     heading: MiniSVS - Fwd
     dataArray:
@@ -319,3 +331,4 @@
   #   dataArray:
   #   - dataType: flowrate-fwd
   #     visType: json
+ 
