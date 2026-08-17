@@ -48,6 +48,7 @@ from server.plugins.parsers.gga_parser       import GGAParser
 # from server.plugins.parsers.gll_parser       import GLLParser
 # from server.plugins.parsers.gst_parser       import GSTParser
 from server.plugins.parsers.hdt_parser       import HDTParser
+from server.plugins.parsers.maximet_parser   import MaxiMetParser
 from server.plugins.parsers.metpakpro_parser import MetPakProParser
 from server.plugins.parsers.minisvs_parser   import MiniSVSParser
 from server.plugins.parsers.mwd_parser       import MWDParser
@@ -89,6 +90,12 @@ fileTypeFilters = [
     # {"data_type":"gyro2-rot",        "regex": "*/" + cruiseID + "_gyro_2_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"gyro3-hdt",        "regex": "*/" + cruiseID + "_gyro_3_hdt-*.txt",      "parser": "HDT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     # {"data_type":"gyro3-rot",        "regex": "*/" + cruiseID + "_gyro_3_rot-*.txt",     "parser": "ROT",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
+    # TODO: confirm the actual OpenRVDAS logger filename pattern for the MaxiMet before enabling.
+    {"data_type":"met-maximet-crane",  "regex": "*/" + cruiseID + "_maximet_crane-*.txt",   "parser": "MaxiMet",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'wind_output':'none'}},
+    {"data_type":"wind-maximet-crane", "regex": "*/" + cruiseID + "_maximet_crane-*.txt",   "parser": "MaxiMet",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'wind_output':'apparent'}},
+    {"data_type":"met-maximet-fm",     "regex": "*/" + cruiseID + "_maximet_fm-*.txt",      "parser": "MaxiMet",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'wind_output':'none'}},
+    {"data_type":"wind-maximet-fm",    "regex": "*/" + cruiseID + "_maximet_fm-*.txt",      "parser": "MaxiMet",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'wind_output':'apparent'}},
+    {"data_type":"maximet-wh-stb",   "regex": "*/" + cruiseID + "_maximet_wh_stb-*.txt",  "parser": "MaxiMet",   'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"met4-fm",          "regex": "*/" + cruiseID + "_met4_fm-*.txt",         "parser": "XDR",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"minisvs-aft",      "regex": "*/" + cruiseID + "_minisvs_aft-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'temperature':False}},
     {"data_type":"minisvs-fwd",      "regex": "*/" + cruiseID + "_minisvs_fwd-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True}},
@@ -131,6 +138,7 @@ class OpenRVDASPlugin(OpenVDMPlugin):
         # "GLL": GLLParser,
         # "GST": GSTParser,
         "HDT": HDTParser,
+        "MaxiMet": MaxiMetParser,
         "MetPakPro": MetPakProParser,
         "MiniSVS": MiniSVSParser,
         "MWD": MWDParser,

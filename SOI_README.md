@@ -217,6 +217,14 @@ set of sensors present on Falkor (too):
 - Meteorology: `MetPakProParser`, `PARParser`, `MWDParser`
 - Oceanography: `SBE45TSGParser`
 
+`MaxiMetParser` (`server/plugins/parsers/maximet_parser.py.dist`) parses Gill MaxiMet-style CSV
+output (apparent wind, instrument true wind direction, pressure, humidity, temp, dew point). A
+`wind_output` option (`--windOutput` on the CLI) selects which wind fields are emitted: `all`
+(default), `apparent` (apparent wind dir/spd only), or `none` (exclude wind entirely). It is
+imported and registered in `openrvdas_plugin.py.dist`'s `PARSER_MAP`, but the `fileTypeFilters`
+entry (`maximet-fm`) is left commented out until the actual OpenRVDAS logger filename pattern for
+the MaxiMet is confirmed.
+
 ---
 
 ## Installation
