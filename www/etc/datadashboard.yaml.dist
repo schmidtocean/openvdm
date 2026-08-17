@@ -163,7 +163,9 @@
     id: map
     heading: Position
     dataArray:
-    - dataType: dps122-gga
+    - dataType: dpsi1-gga
+      visType: geoJSON
+    - dataType: seapath-gga
       visType: geoJSON
     - dataType: posmv-gga
       visType: geoJSON
@@ -200,22 +202,34 @@
     - dataType: posmv-hdt
       visType: json
   - plotType: chart
+    id: seapath-hdt
+    heading: Seapath - Heading
+    dataArray:
+    - dataType: seapath-hdt
+      visType: json
+  - plotType: chart
     id: posmv-pashr
     heading: POS/MV - Heading, Pitch, Roll, Heave
     dataArray:
     - dataType: posmv-pashr 
       visType: json
   - plotType: chart
-    id: dps122-vtg
-    heading: DPS122 - COG/SOG
+    id: dpsi1-vtg
+    heading: DPSi1 - COG/SOG
     dataArray:
-    - dataType: dps122-vtg
+    - dataType: dpsi1-vtg
       visType: json
   - plotType: chart
     id: posmv-vtg
     heading: POS/MV - COG/SOG
     dataArray:
     - dataType: posmv-vtg
+      visType: json
+  - plotType: chart
+    id: seapath-vtg
+    heading: Seapath - COG/SOG
+    dataArray:
+    - dataType: seapath-vtg
       visType: json
 
 - title: Weather
@@ -227,16 +241,34 @@
   - charts-zoom
   placeholderArray:
   - plotType: chart
-    id: mpp-mm-aft
-    heading: MetPakPro - Main Mast - Aft
+    id: met4-fm
+    heading: Met4 - Fwd Mast
     dataArray:
-    - dataType: mpp-mm-aft
+    - dataType: met4-fm
+      visType: json
+  - plotType: chart
+    id: par-fm-stb
+    heading: PAR Sensor - Fwd Mast - Stb
+    dataArray:
+    - dataType: par-fm-stb
+      visType: json
+  - plotType: chart
+    id: rad-fm-stb
+    heading: Rad Sensor - Fwd Mast - Stb
+    dataArray:
+    - dataType: rad-fm-stb
       visType: json
   - plotType: chart
     id: truewind-mpp-mm-aft
     heading: MMP True Wind - Main Mast - Aft
     dataArray:
     - dataType: truewind-mpp-mm-aft
+      visType: json
+  - plotType: chart
+    id: windsonic-fm
+    heading: Windsonic True Wind - Fwd Mast
+    dataArray:
+    - dataType: windsonic-fm
       visType: json
 
 - title: Seawater
@@ -247,18 +279,6 @@
   - charts
   - charts-zoom
   placeholderArray:
-  # - plotType: chart
-  #   id: seawater-system
-  #   heading: Thermosalinograph Sensor
-  #   dataArray:
-  #   - dataType: seawater-system
-  #     visType: json
-  # - plotType: chart
-  #   id: fluorometer
-  #   heading: Fluorometer
-  #   dataArray:
-  #   - dataType: fluorometer
-  #     visType: json
   - plotType: chart
     id: ea440-dpt
     heading: EA440 - DPT
@@ -302,10 +322,10 @@
     - dataType: em712-dpt
       visType: json
   - plotType: chart
-    id: minisvs-fwd
-    heading: MiniSVS - Fwd
+    id: minisvs-aft
+    heading: MiniSVS - Aft
     dataArray:
-    - dataType: minisvs-fwd
+    - dataType: minisvs-aft
       visType: json
   - plotType: chart
     id: tsg45_1 
@@ -331,4 +351,16 @@
   #   dataArray:
   #   - dataType: flowrate-fwd
   #     visType: json
+  - plotType: chart
+    id: fluoro_1
+    heading: Fluorometer Primary
+    dataArray:
+    - dataType: fluoro_1
+      visType: json
+  - plotType: chart
+    id: fluoro_2
+    heading: Fluorometer Secondary
+    dataArray:
+    - dataType: fluoro_2
+      visType: json
  

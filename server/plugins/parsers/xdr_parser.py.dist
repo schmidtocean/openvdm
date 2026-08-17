@@ -40,27 +40,28 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
-PROC_COLS = ['date_time','pres_mbar','temp_c','humid_%']
+PROC_COLS = ['date_time','pres_hPa','temp_c','humid_%']
 
+# Timestamp,Header,P,AirPres_hPa,hPa,PresSensorSN,C,AirTemp_C,C,TempSensorSN,H,Humidity_%,P,HumidSensorSN
+# 2026-08-09T14:05:11.528937Z,$WIXDR,P,1013.266,hPa,DQ153542,C,28.64,C,DQ20408332,H,83.94,P,DQ20408332
 FIELDS = [
     "header",
-    "PRESS",
-    "pres_bar",
-    "bar",
+    "P1",
+    "pres_hPa",
+    "hPa",
     "press_sn",
-    "TEMP",
+    "C1",
     "temp_c",
-    "C",
-    "RH",
+    "C2",
+    "temp_sn",
+    "H",
     "humid_%",
-    "%RH",
-    "temp_humid_sn",
-    "FAN",
-    "0"
+    "P2",
+    "humid_sn"
 ]
 
 ROUNDING = {
-    'pres_mbar': 2,
+    'pres_hPa': 2,
     'temp_c': 2,
     'humid_%': 2
 }
@@ -100,18 +101,19 @@ class XDRParser(OpenVDMCSVParser):
                 field_data = dict(zip(FIELDS, fields))
 
                 try:
-                    pres_mbar = float(field_data['pres_bar']) * 1000 if field_data['pres_bar'] else None
+                    pres_hPa = float(field_data['pres_hPa']) if field_data['pres_hPa'] else None
                     temp_c = float(field_data['temp_c']) if field_data['temp_c'] else None
                     humidity = float(field_data['humid_%']) if field_data['humid_%'] else None
 
                     raw_data['date_time'].append(timestamp_str)
-                    raw_data['pres_mbar'].append(pres_mbar)
+                    raw_data['pres_hPa'].append(pres_hPa)
                     raw_data['temp_c'].append(temp_c)
                     raw_data['humid_%'].append(humidity)
 
                 except Exception as err:
                     errors.append(lineno)
                     logging.debug("Line %s skipped due to parse error: %s", lineno, err)
+                    logging.debug(field_data)
 
         except Exception as err:
             logging.error("Failed to read file %s: %s", filepath, err)
@@ -153,10 +155,10 @@ class XDRParser(OpenVDMCSVParser):
                               round(df['deltaT'].max().total_seconds(),3)], 'DeltaT Bounds', 'seconds')
         self.add_value_validity_stat([len(df[df['deltaT'] <= self.MAX_DELTA_T]),
                                       len(df[df['deltaT'] > self.MAX_DELTA_T])], 'DeltaT Validity')
-        self.add_bounds_stat([round(df['pres_mbar'].min(), ROUNDING['pres_mbar']),
-                              round(df['pres_mbar'].max(), ROUNDING['pres_mbar'])], "Air Pressure Bounds", "mBar")
-        self.add_value_validity_stat([len(df[(df['pres_mbar'] >= self.MIN_PRES) & (df['pres_mbar'] <= self.MAX_PRES)]),
-                                      len(df[(df['pres_mbar'] < self.MIN_PRES) | (df['pres_mbar'] > self.MAX_PRES)])], "Air Pressure Validity")
+        self.add_bounds_stat([round(df['pres_hPa'].min(), ROUNDING['pres_hPa']),
+                              round(df['pres_hPa'].max(), ROUNDING['pres_hPa'])], "Air Pressure Bounds", "hPa")
+        self.add_value_validity_stat([len(df[(df['pres_hPa'] >= self.MIN_PRES) & (df['pres_hPa'] <= self.MAX_PRES)]),
+                                      len(df[(df['pres_hPa'] < self.MIN_PRES) | (df['pres_hPa'] > self.MAX_PRES)])], "Air Pressure Validity")
         self.add_bounds_stat([round(df['temp_c'].min(), ROUNDING['temp_c']),
                               round(df['temp_c'].max(), ROUNDING['temp_c'])], "Air Temperature Bounds", "C")
         self.add_value_validity_stat([len(df[(df['temp_c'] >= self.MIN_TEMP) & (df['temp_c'] <= self.MAX_TEMP)]),
@@ -173,7 +175,7 @@ class XDRParser(OpenVDMCSVParser):
         quality_checks = [
             ('Rows', len(df)+len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
-            ('Air Pressure', len(df), len(df[(df['pres_mbar'] < self.MIN_PRES) | (df['pres_mbar'] > self.MAX_PRES)])),
+            ('Air Pressure', len(df), len(df[(df['pres_hPa'] < self.MIN_PRES) | (df['pres_hPa'] > self.MAX_PRES)])),
             ('Air Temperature', len(df), len(df[(df['temp_c'] < self.MIN_TEMP) | (df['temp_c'] > self.MAX_TEMP)])),
             ('Rel. Humidity', len(df), len(df[(df['humid_%'] < self.MIN_HUMID) | (df['humid_%'] > self.MAX_HUMID)])),
         ]
@@ -202,7 +204,7 @@ class XDRParser(OpenVDMCSVParser):
         # -------------------------
         logging.info("Building visualization datasets...")
 
-        for col, unit, label in [('pres_mbar', 'mBar', 'Air Pres'),
+        for col, unit, label in [('pres_hPa', 'hPa', 'Air Pres'),
                                  ('temp_c', 'C', 'Temperature'),
                                  ('humid_%', '%', 'Rel. Humidity')]:
 

@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """
-FILE:  dbt_parser.py
+FILE:  dpt_parser.py
 
-USAGE:  dbt_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--noMag] <dataFile>
+USAGE:  dpt_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--noMag] <dataFile>
 
-DESCRIPTION:  Parse the supplied NMEA-formtted DBT file and return the json-
+DESCRIPTION:  Parse the supplied NMEA-formtted DPT file and return the json-
               formatted string used by OpenVDM as part of it's Data dashboard.
 
   OPTIONS:  [-h] Return the help message.
@@ -54,13 +54,13 @@ ROUNDING = {
 }
 
 
-class DBTParser(OpenVDMCSVParser):
-    """Parser for NMEA DBT files, fully refactored like GGAParser."""
+class DPTParser(OpenVDMCSVParser):
+    """Parser for NMEA DPT files, fully refactored like GGAParser."""
 
     MAX_DELTA_T = pd.Timedelta('10 seconds')
 
-    MIN_DBT = 0
-    MAX_DBT = 12000
+    MIN_DPT = 0
+    MAX_DPT = 12000
 
     def __init__(self, start_dt=None, stop_dt=None, time_format=None,
                  skip_header=False, use_openvdm_api=False, no_mag=False):
@@ -73,13 +73,13 @@ class DBTParser(OpenVDMCSVParser):
         errors = []
 
         # -------------------------
-        # Read and parse DBT lines
+        # Read and parse DPT lines
         # -------------------------
         try:
-            for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath, nmea_filter='DBT'):
+            for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath, nmea_filter='DPT'):
                 logging.debug(f"{timestamp_str}{self.timestamp_separator}{remainder}")
 
-                # Map fields to DBT_FIELDS
+                # Map fields to DPT_FIELDS
                 field_data = dict(zip(FIELDS, fields))
 
                 try:
@@ -97,7 +97,7 @@ class DBTParser(OpenVDMCSVParser):
             return None
 
         if not raw_data['date_time']:
-            logging.warning("No valid DBT data in file: %s", filepath)
+            logging.warning("No valid DPT data in file: %s", filepath)
             return None
 
         # -------------------------
@@ -134,8 +134,8 @@ class DBTParser(OpenVDMCSVParser):
                                       len(df[df['deltaT'] > self.MAX_DELTA_T])], 'DeltaT Validity')
         self.add_bounds_stat([round(df['dpt_m'].min(), ROUNDING['dpt_m']),
                               round(df['dpt_m'].max(), ROUNDING['dpt_m'])], "Depth Bounds", "m")
-        self.add_value_validity_stat([len(df[(df['dpt_m'] >= self.MIN_DBT) & (df['dpt_m'] <= self.MAX_DBT)]),
-                                      len(df[(df['dpt_m'] < self.MIN_DBT) | (df['dpt_m'] > self.MAX_DBT)])], "Depth Validity")
+        self.add_value_validity_stat([len(df[(df['dpt_m'] >= self.MIN_DPT) & (df['dpt_m'] <= self.MAX_DPT)]),
+                                      len(df[(df['dpt_m'] < self.MIN_DPT) | (df['dpt_m'] > self.MAX_DPT)])], "Depth Validity")
 
         # -------------------------
         # Quality tests
@@ -144,7 +144,7 @@ class DBTParser(OpenVDMCSVParser):
         quality_checks = [
             ('Rows', len(df)+len(errors), len(errors)),
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
-            ('Depth', len(df), len(df[(df['dpt_m'] < self.MIN_DBT) | (df['dpt_m'] > self.MAX_DBT)]))
+            ('Depth', len(df), len(df[(df['dpt_m'] < self.MIN_DPT) | (df['dpt_m'] > self.MAX_DPT)]))
         ]
 
         for col, total, bad in quality_checks:
@@ -190,4 +190,4 @@ class DBTParser(OpenVDMCSVParser):
 # Standalone CLI
 # -------------------------------------------------------------------------------------
 if __name__ == "__main__":
-    DBTParser.run_cli()
+    DPTParser.run_cli()

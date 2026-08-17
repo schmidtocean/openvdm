@@ -46,11 +46,8 @@ PROC_COLS = ['date_time','scattering','chlor','fdom']
 FIELDS = [
     'sensor_date',
     'sensor_time',
-    '650',
     'scattering_signal_count',
-    '695',
     'chlor_signal_count',
-    '460',
     'fdom_signal_count',
     'cpu_thermistor'
 ]
@@ -86,7 +83,7 @@ class ECOTripletParser(OpenVDMCSVParser):
         # Read and parse lines
         # -------------------------
         try:
-            for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath, fields_sep='\t'):
+            for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath, fields_sep=' '):
                 logging.debug(f"{timestamp_str}{self.timestamp_separator}{remainder}")
 
                 # Map fields to FIELDS
