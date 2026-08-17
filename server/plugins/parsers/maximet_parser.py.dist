@@ -1,0 +1,294 @@
+#!/usr/bin/env python3
+"""
+FILE:  maximet_parser.py
+
+USAGE:  maximet_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--windOutput] <dataFile>
+
+DESCRIPTION:  Parse the supplied Gill MaxiMet-style CSV file and return the
+              json-formatted string used by OpenVDM as part of it's Data
+              dashboard.
+
+  OPTIONS:  [-h] Return the help message.
+            [-v+] Increase verbosity (default: warning)
+            [--timeFormat] date/time format to use when parsing datafile, default
+                           yyyy-mm-ddTHH:MM:SS.sssZ
+            [--startTS] optional start crop time (strptime format)
+            [--stopTS] optional stop crop time (strptime format)
+            [--windOutput] which wind fields to include in the output: 'all'
+                           (apparent wind dir/spd + true wind dir, default),
+                           'apparent' (wind dir/spd only, no true wind dir),
+                           or 'none' (exclude all wind fields)
+            <dataFile> Full or relative path of the data file to process.
+
+REQUIREMENTS:  Python3.11
+               Python Modules:
+                   numpy==2.4.0
+                   pandas==2.3.0
+
+     BUGS:
+    NOTES:
+   AUTHOR:  Webb Pinner
+  VERSION:  2.15
+  CREATED:  2026-08-17
+ REVISION:  2026-08-17
+"""
+
+import sys
+import logging
+from datetime import datetime
+from os.path import dirname, realpath
+import pandas as pd
+import numpy as np
+import json
+
+sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
+
+from server.lib.openvdm_plugin import OpenVDMCSVParser
+
+# Timestamp,NodeLetter,WindDir,WindSpd,WindDir_InstrumentTrueWind,AirPres,Humidity,AirTemp,DewPoint,InstrumentTime,SupplyVoltage,SupplyCode,CheckSum
+# 2026-08-09T14:05:10.512637Z,Q,039,002.33,180,1012.9,079.3,+029.2,+025.4,2026-08-09T13:43:14.2,+12.1,0000,26
+FIELDS = [
+    "node_letter",
+    "wind_dir",
+    "wind_spd",
+    "wind_dir_true",
+    "air_pres",
+    "humidity",
+    "air_temp",
+    "dew_point",
+    "instrument_time",
+    "supply_voltage",
+    "supply_code",
+    "checksum",
+]
+
+MET_COLS = ['air_pres', 'humidity', 'air_temp', 'dew_point']
+APPARENT_WIND_COLS = ['wind_dir', 'wind_spd']
+TRUE_WIND_COLS = ['wind_dir_true']
+
+# Which wind columns are included in the output for each windOutput mode
+WIND_OUTPUT_COLS = {
+    'all': APPARENT_WIND_COLS + TRUE_WIND_COLS,
+    'apparent': APPARENT_WIND_COLS,
+    'none': [],
+}
+
+ROUNDING = {
+    'wind_dir': 2,
+    'wind_spd': 2,
+    'wind_dir_true': 2,
+    'air_pres': 2,
+    'humidity': 2,
+    'air_temp': 2,
+    'dew_point': 2
+}
+
+# Per-column metadata used to drive stats/quality-checks/visualization for
+# whichever columns end up in self.proc_cols (see WIND_OUTPUT_COLS).
+COL_SPECS = {
+    'wind_dir':      dict(min_attr='MIN_DIR', max_attr='MAX_DIR', uom='deg',
+                           bounds_name='Wind Direction Bounds', validity_name='Wind Direction Validity',
+                           quality_name='Wind Direction', viz_label='Wind Dir Rel.', viz_unit='deg'),
+    'wind_spd':      dict(min_attr='MIN_SPD', max_attr='MAX_SPD', uom='m/s',
+                           bounds_name='Wind Speed Bounds', validity_name='Wind Speed Validity',
+                           quality_name='Wind Speed', viz_label='Wind Speed', viz_unit='m/s'),
+    'wind_dir_true': dict(min_attr='MIN_DIR', max_attr='MAX_DIR', uom='deg',
+                           bounds_name='True Wind Direction Bounds', validity_name='True Wind Direction Validity',
+                           quality_name='True Wind Direction', viz_label='Wind Dir True', viz_unit='deg'),
+    'air_pres':      dict(min_attr='MIN_PRES', max_attr='MAX_PRES', uom='hPa',
+                           bounds_name='Air Pressure Bounds', validity_name='Air Pressure Validity',
+                           quality_name='Air Pressure', viz_label='Air Pres', viz_unit='hPa'),
+    'humidity':      dict(min_attr='MIN_HUMID', max_attr='MAX_HUMID', uom='%',
+                           bounds_name='Humidity Bounds', validity_name='Humidity Validity',
+                           quality_name='Rel. Humidity', viz_label='Rel. Humidity', viz_unit='%'),
+    'air_temp':      dict(min_attr='MIN_TEMP', max_attr='MAX_TEMP', uom='C',
+                           bounds_name='Air Temperature Bounds', validity_name='Air Temperature Validity',
+                           quality_name='Air Temperature', viz_label='Air Temperature', viz_unit='C'),
+    'dew_point':     dict(min_attr='MIN_TEMP', max_attr='MAX_TEMP', uom='C',
+                           bounds_name='Dew Point Bounds', validity_name='Dew Point Validity',
+                           quality_name='Dew Point', viz_label='Dew Point', viz_unit='C'),
+}
+
+
+class MaxiMetParser(OpenVDMCSVParser):
+    """Parser for MaxiMet-style CSV files, fully refactored like GGAParser."""
+
+    MAX_DELTA_T = pd.Timedelta('10 seconds')
+
+    MIN_DIR = 0.0
+    MAX_DIR = 359.99
+    MIN_SPD = 0.0
+    MAX_SPD = 75.0
+    MIN_PRES = 870.0
+    MAX_PRES = 1080.0
+    MIN_HUMID = 0.0
+    MAX_HUMID = 100.0
+    MIN_TEMP = -40.0
+    MAX_TEMP = 50.0
+
+
+    def __init__(self, start_dt=None, stop_dt=None, time_format=None,
+                 skip_header=True, use_openvdm_api=False, wind_output='all'):
+        if wind_output not in WIND_OUTPUT_COLS:
+            raise ValueError(f"wind_output must be one of: {', '.join(WIND_OUTPUT_COLS)}")
+
+        self.wind_output = wind_output
+        wind_cols = WIND_OUTPUT_COLS[wind_output]
+        proc_cols = ['date_time'] + wind_cols + MET_COLS
+
+        super().__init__(None, proc_cols, start_dt=start_dt, stop_dt=stop_dt,
+                         time_format=time_format, skip_header=skip_header,
+                         use_openvdm_api=use_openvdm_api)
+
+    @classmethod
+    def add_cli_arguments(cls, parser):
+        """Add the --windOutput CLI option."""
+        parser.add_argument('--windOutput', dest='windOutput', default='all',
+                            choices=list(WIND_OUTPUT_COLS),
+                            help="wind fields to include: 'all' (apparent + true dir), "
+                                 "'apparent' (wind_dir/wind_spd only), or 'none' (exclude wind)")
+
+    @classmethod
+    def _extract_custom_cli_kwargs(cls, args):
+        """Translate the --windOutput CLI option into a constructor kwarg."""
+        return {'wind_output': args.windOutput}
+
+    def parse(self, filepath):
+        raw_data = {col: [] for col in self.proc_cols}
+        errors = []
+
+        # -------------------------
+        # Read and parse lines
+        # -------------------------
+        try:
+            for lineno, timestamp_str, remainder, fields in self.read_lines_with_timestamps(filepath):
+                logging.debug(f"{timestamp_str}{self.timestamp_separator}{remainder}")
+
+                # Map fields to FIELDS
+                field_data = dict(zip(FIELDS, fields))
+
+                try:
+                    row = {
+                        col: float(field_data[col]) if field_data[col] else None
+                        for col in self.proc_cols if col != 'date_time'
+                    }
+
+                    raw_data['date_time'].append(timestamp_str)
+                    for col, value in row.items():
+                        raw_data[col].append(value)
+
+                except Exception as err:
+                    errors.append(lineno)
+                    logging.debug("Line %s skipped due to parse error: %s", lineno, err)
+                    logging.debug(field_data)
+
+        except Exception as err:
+            logging.error("Failed to read file %s: %s", filepath, err)
+            return None
+
+        if not raw_data['date_time']:
+            logging.warning("No valid data in file: %s", filepath)
+            return None
+
+        # -------------------------
+        # Build DataFrame
+        # -------------------------
+        df = pd.DataFrame(raw_data)
+        df['date_time'] = pd.to_datetime(df['date_time'], errors='coerce')
+        if df['date_time'].isna().all():
+            logging.error("All timestamps could not be parsed; aborting.")
+            return None
+        df = df.dropna(subset=['date_time'])
+        df = df.set_index('date_time')
+
+        if self.start_dt or self.stop_dt:
+            df = self.crop_data(df)
+        if df.empty:
+            logging.warning("Dataframe empty after cropping: %s", filepath)
+            return None
+
+        # -------------------------
+        # DeltaT
+        # -------------------------
+        df['deltaT'] = df.index.to_series().diff()
+
+        # Columns actually present in this run's output (depends on wind_output)
+        active_cols = [col for col in self.proc_cols if col != 'date_time']
+
+        # -------------------------
+        # Statistics
+        # -------------------------
+        logging.info("Tabulating statistics...")
+        self.add_row_validity_stat([len(df), len(errors)])
+        self.add_time_bounds_stat([df.index.min().to_pydatetime(),df.index.max().to_pydatetime()])
+        self.add_bounds_stat([round(df['deltaT'].min().total_seconds(),3),
+                              round(df['deltaT'].max().total_seconds(),3)], 'DeltaT Bounds', 'seconds')
+        self.add_value_validity_stat([len(df[df['deltaT'] <= self.MAX_DELTA_T]),
+                                      len(df[df['deltaT'] > self.MAX_DELTA_T])], 'DeltaT Validity')
+
+        for col in active_cols:
+            spec = COL_SPECS[col]
+            min_v, max_v = getattr(self, spec['min_attr']), getattr(self, spec['max_attr'])
+            self.add_bounds_stat([round(df[col].min(), ROUNDING[col]),
+                                  round(df[col].max(), ROUNDING[col])], spec['bounds_name'], spec['uom'])
+            self.add_value_validity_stat([len(df[(df[col] >= min_v) & (df[col] <= max_v)]),
+                                          len(df[(df[col] < min_v) | (df[col] > max_v)])], spec['validity_name'])
+
+        # -------------------------
+        # Quality tests
+        # -------------------------
+        logging.info("Running quality tests...")
+        quality_checks = [
+            ('Rows', len(df)+len(errors), len(errors)),
+            ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
+        ]
+        for col in active_cols:
+            spec = COL_SPECS[col]
+            min_v, max_v = getattr(self, spec['min_attr']), getattr(self, spec['max_attr'])
+            quality_checks.append((spec['quality_name'], len(df), len(df[(df[col] < min_v) | (df[col] > max_v)])))
+
+        for col, total, bad in quality_checks:
+            error_rate = bad / total
+            if error_rate > 0.25:
+                self.add_quality_test_failed(col)
+            elif error_rate > 0.10:
+                self.add_quality_test_warning(col)
+            else:
+                self.add_quality_test_passed(col)
+
+        # -------------------------
+        # Resample and round
+        # -------------------------
+        df = self.resample_data(df)
+        df = self.round_data(df, ROUNDING)
+        df = df.set_index('date_time')
+
+        # -------------------------
+        # Visualization
+        # -------------------------
+        logging.info("Building visualization datasets...")
+
+        for col in active_cols:
+            spec = COL_SPECS[col]
+
+            visualizer_data_obj = {'data': [], 'unit': spec['viz_unit'], 'label': spec['viz_label']}
+            for ts, row in df.iterrows():
+                if pd.notna(row[col]):
+                    ts = pd.Timestamp(ts)
+                    if ts.tzinfo is None:
+                        ts = ts.tz_localize('UTC')
+                    epoch_ms = int(ts.timestamp() * 1000)
+                    visualizer_data_obj['data'].append([epoch_ms, row[col]])
+
+            self.add_visualization_data(visualizer_data_obj)
+
+        # -------------------------
+        # Send errors to OpenVDM
+        # -------------------------
+        self.send_error_msg(errors, filepath)
+
+# -------------------------------------------------------------------------------------
+# Standalone CLI
+# -------------------------------------------------------------------------------------
+if __name__ == "__main__":
+    MaxiMetParser.run_cli()
