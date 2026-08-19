@@ -98,7 +98,7 @@ fileTypeFilters = [
     {"data_type":"maximet-wh-stb",   "regex": "*/" + cruiseID + "_maximet_wh_stb-*.txt",  "parser": "MaxiMet",   'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"met4-fm",          "regex": "*/" + cruiseID + "_met4_fm-*.txt",         "parser": "XDR",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"minisvs-aft",      "regex": "*/" + cruiseID + "_minisvs_aft-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'no_temp':True}},
-    {"data_type":"minisvs-fwd",      "regex": "*/" + cruiseID + "_minisvs_fwd-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'no_temp':True}},
+    {"data_type":"minisvs-fwd",      "regex": "*/" + cruiseID + "_minisvs_fwd-*.txt",     "parser": "MiniSVS",   'parser_options':{'skip_header':True,'use_openvdm_api':True, 'no_temp':False}},
     # {"data_type":"mpp-wh-stb",       "regex": "*/" + cruiseID + "_mpp_wh_stb-*.txt",      "parser": "MetPakPro", 'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"par-fm-port",      "regex": "*/" + cruiseID + "_par_fm_port-*.txt",     "parser": "PAR",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
     {"data_type":"par-fm-stb",       "regex": "*/" + cruiseID + "_par_fm_stb-*.txt",     "parser": "PAR",       'parser_options':{'skip_header':True,'use_openvdm_api':True}},
