@@ -2,14 +2,15 @@
 """
 FILE:  minisvs_parser.py
 
-USAGE:  minisvs_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--temperature] <dataFile>
+USAGE:  minisvs_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--no_temp] <dataFile>
 
 DESCRIPTION:  Parse the supplied MiniSVS data and return the json-formatted
               string used by OpenVDM as part of it's Data dashboard.
 
-              The data field contains either a bare sound-velocity value or a
-              space-separated pair of temperature and sound-velocity values.
-              Use --temperature when the data field includes a temperature prefix.
+              The data field contains, by default, a space-separated pair of
+              temperature and sound-velocity values (temperature first). Use
+              --no_temp when the data field contains a bare sound-velocity
+              value only, with no temperature prefix.
 
   OPTIONS:  [-h] Return the help message.
             [-v+] Increase verbosity (default: warning)
@@ -17,7 +18,8 @@ DESCRIPTION:  Parse the supplied MiniSVS data and return the json-formatted
                            yyyy-mm-ddTHH:MM:SS.sssZ
             [--startTS] optional start crop time (strptime format)
             [--stopTS] optional stop crop time (strptime format)
-            [--temperature] data field contains temperature before sound velocity
+            [--no_temp] data field contains a bare sound velocity value only
+                        (no temperature prefix)
             <dataFile> Full or relative path of the data file to process.
 
 REQUIREMENTS:  Python3.11
@@ -30,7 +32,7 @@ REQUIREMENTS:  Python3.11
    AUTHOR:  Webb Pinner
   VERSION:  2.15
   CREATED:  2016-08-29
- REVISION:  2025-06-09
+ REVISION:  2026-08-19
 """
 
 import sys
@@ -44,12 +46,12 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
-PROC_COLS = ['date_time', 'sound_velocity']
-
-# The data column contains either "sv" or "temp sv" (space-separated).
+# The data column contains, by default, a "temp sv" (space-separated) pair.
+# When no_temp is set, it contains a bare "sv" value only.
 FIELDS = ['raw_data']
 
 ROUNDING = {
+    'temperature': 2,
     'sound_velocity': 2
 }
 
@@ -57,20 +59,25 @@ ROUNDING = {
 class MiniSVSParser(OpenVDMCSVParser):
     """Parser for MiniSVS sound velocity sensor data files.
 
-    The raw data column may contain a bare sound-velocity value or a
-    space-separated ``temperature sound_velocity`` pair.  Set
-    ``temperature=True`` when the former format is in use.
+    The raw data column contains, by default, a space-separated
+    ``temperature sound_velocity`` pair.  Set ``no_temp=True`` when the data
+    field contains a bare sound-velocity value only, with no temperature
+    prefix.
     """
 
     MAX_DELTA_T = pd.Timedelta('10 seconds')
 
     MIN_SV = 1400.0
     MAX_SV = 1600.0
+    MIN_TEMP = -40.0
+    MAX_TEMP = 50.0
 
     def __init__(self, start_dt=None, stop_dt=None, time_format=None,
-                 skip_header=False, use_openvdm_api=False, temperature=False):
-        self.temperature = temperature
-        super().__init__(None, PROC_COLS, start_dt=start_dt, stop_dt=stop_dt,
+                 skip_header=False, use_openvdm_api=False, no_temp=False):
+        self.no_temp = no_temp
+        proc_cols = ['date_time', 'sound_velocity'] if no_temp \
+            else ['date_time', 'temperature', 'sound_velocity']
+        super().__init__(None, proc_cols, start_dt=start_dt, stop_dt=stop_dt,
                          time_format=time_format, skip_header=skip_header,
                          use_openvdm_api=use_openvdm_api)
 
@@ -89,12 +96,15 @@ class MiniSVSParser(OpenVDMCSVParser):
 
                 try:
                     parts = field_data['raw_data'].strip().split()
-                    if self.temperature:
-                        sound_velocity = float(parts[1])
-                    else:
+                    if self.no_temp:
                         sound_velocity = float(parts[0])
+                    else:
+                        temperature = float(parts[0])
+                        sound_velocity = float(parts[1])
 
                     raw_data['date_time'].append(timestamp_str)
+                    if not self.no_temp:
+                        raw_data['temperature'].append(temperature)
                     raw_data['sound_velocity'].append(sound_velocity)
 
                 except Exception as err:
@@ -145,6 +155,11 @@ class MiniSVSParser(OpenVDMCSVParser):
                               round(df['sound_velocity'].max(), ROUNDING['sound_velocity'])], 'Sound Speed Bounds', 'm/s')
         self.add_value_validity_stat([len(df[(df['sound_velocity'] >= self.MIN_SV) & (df['sound_velocity'] <= self.MAX_SV)]),
                                       len(df[(df['sound_velocity'] < self.MIN_SV) | (df['sound_velocity'] > self.MAX_SV)])], 'Sound Speed Validity')
+        if not self.no_temp:
+            self.add_bounds_stat([round(df['temperature'].min(), ROUNDING['temperature']),
+                                  round(df['temperature'].max(), ROUNDING['temperature'])], 'Temperature Bounds', 'C')
+            self.add_value_validity_stat([len(df[(df['temperature'] >= self.MIN_TEMP) & (df['temperature'] <= self.MAX_TEMP)]),
+                                          len(df[(df['temperature'] < self.MIN_TEMP) | (df['temperature'] > self.MAX_TEMP)])], 'Temperature Validity')
 
         # -------------------------
         # Quality tests
@@ -155,6 +170,9 @@ class MiniSVSParser(OpenVDMCSVParser):
             ('DeltaT', len(df), len(df[df['deltaT'] > self.MAX_DELTA_T])),
             ('Sound Speed', len(df), len(df[(df['sound_velocity'] < self.MIN_SV) | (df['sound_velocity'] > self.MAX_SV)]))
         ]
+        if not self.no_temp:
+            quality_checks.append(('Temperature', len(df),
+                                   len(df[(df['temperature'] < self.MIN_TEMP) | (df['temperature'] > self.MAX_TEMP)])))
 
         for col, total, bad in quality_checks:
             error_rate = bad / total
@@ -177,7 +195,11 @@ class MiniSVSParser(OpenVDMCSVParser):
         # -------------------------
         logging.info("Building visualization datasets...")
 
-        for col, unit, label in [('sound_velocity', 'm/s', 'Sound Speed')]:
+        viz_cols = [('sound_velocity', 'm/s', 'Sound Speed')]
+        if not self.no_temp:
+            viz_cols.append(('temperature', 'C', 'Temperature'))
+
+        for col, unit, label in viz_cols:
             visualizer_data_obj = {'data': [], 'unit': unit, 'label': label}
             for ts, row in df.iterrows():
                 if pd.notna(row[col]):
@@ -196,12 +218,15 @@ class MiniSVSParser(OpenVDMCSVParser):
 
     @classmethod
     def add_cli_arguments(cls, parser):
-        parser.add_argument('--temperature', action='store_true', default=False,
-                            help='Data field contains temperature before sound velocity')
+        """Add the --no_temp CLI option."""
+        parser.add_argument('--no_temp', action='store_true', default=False,
+                            help='Data field contains a bare sound velocity value only '
+                                 '(no temperature prefix)')
 
     @classmethod
     def _extract_custom_cli_kwargs(cls, args):
-        return {'temperature': getattr(args, 'temperature', False)}
+        """Translate the --no_temp CLI option into a constructor kwarg."""
+        return {'no_temp': getattr(args, 'no_temp', False)}
 
 # -------------------------------------------------------------------------------------
 # Standalone CLI
