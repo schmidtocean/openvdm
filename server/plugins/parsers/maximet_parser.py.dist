@@ -2,7 +2,7 @@
 """
 FILE:  maximet_parser.py
 
-USAGE:  maximet_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--windOutput] <dataFile>
+USAGE:  maximet_parser.py [-h] [-v+] [--timeFormat] [--startDT] [--stopDT] [--windOutput] [--metOutput] <dataFile>
 
 DESCRIPTION:  Parse the supplied Gill MaxiMet-style CSV file and return the
               json-formatted string used by OpenVDM as part of it's Data
@@ -18,6 +18,11 @@ DESCRIPTION:  Parse the supplied Gill MaxiMet-style CSV file and return the
                            (apparent wind dir/spd + true wind dir, default),
                            'apparent' (wind dir/spd only, no true wind dir),
                            or 'none' (exclude all wind fields)
+            [--metOutput] which met fields to include in the output: 'all'
+                          (air pressure, humidity, air temp, dew point, default)
+                          or 'none' (exclude all met fields). Combine with
+                          --windOutput apparent --metOutput none to output
+                          apparent wind only.
             <dataFile> Full or relative path of the data file to process.
 
 REQUIREMENTS:  Python3.11
@@ -30,7 +35,7 @@ REQUIREMENTS:  Python3.11
    AUTHOR:  Webb Pinner
   VERSION:  2.15
   CREATED:  2026-08-17
- REVISION:  2026-08-17
+ REVISION:  2026-08-19
 """
 
 import sys
@@ -70,6 +75,12 @@ TRUE_WIND_COLS = ['wind_dir_true']
 WIND_OUTPUT_COLS = {
     'all': APPARENT_WIND_COLS + TRUE_WIND_COLS,
     'apparent': APPARENT_WIND_COLS,
+    'none': [],
+}
+
+# Which met columns are included in the output for each metOutput mode
+MET_OUTPUT_COLS = {
+    'all': MET_COLS,
     'none': [],
 }
 
@@ -128,13 +139,18 @@ class MaxiMetParser(OpenVDMCSVParser):
 
 
     def __init__(self, start_dt=None, stop_dt=None, time_format=None,
-                 skip_header=True, use_openvdm_api=False, wind_output='all'):
+                 skip_header=True, use_openvdm_api=False, wind_output='all',
+                 met_output='all'):
         if wind_output not in WIND_OUTPUT_COLS:
             raise ValueError(f"wind_output must be one of: {', '.join(WIND_OUTPUT_COLS)}")
+        if met_output not in MET_OUTPUT_COLS:
+            raise ValueError(f"met_output must be one of: {', '.join(MET_OUTPUT_COLS)}")
 
         self.wind_output = wind_output
+        self.met_output = met_output
         wind_cols = WIND_OUTPUT_COLS[wind_output]
-        proc_cols = ['date_time'] + wind_cols + MET_COLS
+        met_cols = MET_OUTPUT_COLS[met_output]
+        proc_cols = ['date_time'] + wind_cols + met_cols
 
         super().__init__(None, proc_cols, start_dt=start_dt, stop_dt=stop_dt,
                          time_format=time_format, skip_header=skip_header,
@@ -142,16 +158,21 @@ class MaxiMetParser(OpenVDMCSVParser):
 
     @classmethod
     def add_cli_arguments(cls, parser):
-        """Add the --windOutput CLI option."""
+        """Add the --windOutput and --metOutput CLI options."""
         parser.add_argument('--windOutput', dest='windOutput', default='all',
                             choices=list(WIND_OUTPUT_COLS),
                             help="wind fields to include: 'all' (apparent + true dir), "
                                  "'apparent' (wind_dir/wind_spd only), or 'none' (exclude wind)")
+        parser.add_argument('--metOutput', dest='metOutput', default='all',
+                            choices=list(MET_OUTPUT_COLS),
+                            help="met fields to include: 'all' (air_pres/humidity/air_temp/dew_point, "
+                                 "default) or 'none' (exclude met). Use with --windOutput apparent "
+                                 "to output apparent wind only.")
 
     @classmethod
     def _extract_custom_cli_kwargs(cls, args):
-        """Translate the --windOutput CLI option into a constructor kwarg."""
-        return {'wind_output': args.windOutput}
+        """Translate the --windOutput/--metOutput CLI options into constructor kwargs."""
+        return {'wind_output': args.windOutput, 'met_output': args.metOutput}
 
     def parse(self, filepath):
         raw_data = {col: [] for col in self.proc_cols}
