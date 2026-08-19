@@ -295,10 +295,10 @@
     - dataType: maximet-wind-crane
       visType: json
   - plotType: chart
-    id: truewind-mpp-mm-aft
-    heading: MMP True Wind - Main Mast - Aft
+    id: truewind-fm
+    heading: True Wind - Fwd Mast
     dataArray:
-    - dataType: truewind-mpp-mm-aft
+    - dataType: truewind-fm
       visType: json
   - plotType: chart
     id: windsonic-fm
@@ -362,6 +362,12 @@
     heading: MiniSVS - Aft
     dataArray:
     - dataType: minisvs-aft
+      visType: json
+  - plotType: chart
+    id: minisvs-fwd
+    heading: MiniSVS - Fwd
+    dataArray:
+    - dataType: minisvs-fwd
       visType: json
   - plotType: chart
     id: tsg45_1 

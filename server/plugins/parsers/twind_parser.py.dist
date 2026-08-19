@@ -15,8 +15,7 @@ sys.path.append(dirname(dirname(dirname(dirname(realpath(__file__))))))
 
 from server.lib.openvdm_plugin import OpenVDMCSVParser
 
-FIELDS = ['hdr', 'wind_speed', 'wind_dir', 'unknown_01', 'unknown_02',
-          'unknown_03', 'unknown_04', 'unknown_05']
+FIELDS = ['wind_dir', 'wind_speed', 'wind_dir']
 PROC_COLS = ['date_time', 'wind_speed', 'wind_dir']
 
 ROUNDING = {
