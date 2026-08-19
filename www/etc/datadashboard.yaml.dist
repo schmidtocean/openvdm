@@ -259,6 +259,42 @@
     - dataType: rad-fm-stb
       visType: json
   - plotType: chart
+    id: maximet-met-wh-stb
+    heading: Maximet - Met - Wheelhouse - Stb
+    dataArray:
+    - dataType: maximet-met-wh-stb
+      visType: json
+  - plotType: chart
+    id: maximet-wind-wh-stb
+    heading: Maximet - Wind - Wheelhouse - Stb
+    dataArray:
+    - dataType: maximet-wind-wh-stb
+      visType: json
+  - plotType: chart
+    id: maximet-met-fm
+    heading: Maximet - Met - Fwd mast
+    dataArray:
+    - dataType: maximet-met-fm
+      visType: json
+  - plotType: chart
+    id: maximet-wind-fm
+    heading: Maximet - Wind - Fwd mast
+    dataArray:
+    - dataType: maximet-wind-fm
+      visType: json
+  - plotType: chart
+    id: maximet-met-crane
+    heading: Maximet - Met - Crane
+    dataArray:
+    - dataType: maximet-met-crane
+      visType: json
+  - plotType: chart
+    id: maximet-wind-crane
+    heading: Maximet - Wind - Crane
+    dataArray:
+    - dataType: maximet-wind-crane
+      visType: json
+  - plotType: chart
     id: truewind-mpp-mm-aft
     heading: MMP True Wind - Main Mast - Aft
     dataArray:
