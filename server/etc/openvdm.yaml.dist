@@ -139,6 +139,12 @@ postHookCommands:
           - ssh
           - mt@10.23.9.24
           - "/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_data_export.py"
+        - name: "Export Metadata Manager calibration report"
+          command:
+          - /opt/openvdm/venv/bin/python
+          - /opt/openvdm/bin/metadataman_pull_calibration_report.py
+          - --cruise-id
+          - "{cruiseID}"
     postFinalizeCurrentCruise:
         commandList:
         - name: "Build file list"

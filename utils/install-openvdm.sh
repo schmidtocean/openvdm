@@ -297,6 +297,32 @@ function create_user {
 
 ###########################################################################
 ###########################################################################
+# Link the vessel-specific environment file into the OpenVDM installation.
+function configure_openvdm_env_file {
+    if [ ! -f "$OPENVDM_ENV_FILE" ]; then
+        echo "ERROR: Required OpenVDM environment file not found: $OPENVDM_ENV_FILE"
+        echo "Expected the shipboard-configurations repository in the OpenVDM user's home directory."
+        exit_gracefully
+        exit 1
+    fi
+
+    OPENVDM_ENV_TARGET="${INSTALL_ROOT}/openvdm/.env"
+    if [ "$OPENVDM_ENV_FILE" = "$OPENVDM_ENV_TARGET" ]; then
+        echo "Using OpenVDM environment file in place: $OPENVDM_ENV_TARGET"
+    elif [ -e "$OPENVDM_ENV_TARGET" ] && [ ! -L "$OPENVDM_ENV_TARGET" ]; then
+        echo "WARNING: Preserving existing regular file: $OPENVDM_ENV_TARGET"
+        echo "Not replacing it with a symlink to $OPENVDM_ENV_FILE"
+        return
+    else
+        ln -sfn "$OPENVDM_ENV_FILE" "$OPENVDM_ENV_TARGET"
+        echo "Linked $OPENVDM_ENV_TARGET -> $OPENVDM_ENV_FILE"
+    fi
+
+    chmod 600 "$OPENVDM_ENV_FILE"
+}
+
+###########################################################################
+###########################################################################
 # Install and configure required packages
 function install_packages {
 
@@ -859,7 +885,7 @@ autorestart=true
 stopsignal=INT
 
 [program:post_hooks]
-command=${VENV_BIN}/python server/workers/post_hooks.py
+command=/bin/bash -c 'set -a; if [ -r "${INSTALL_ROOT}/openvdm/.env" ]; then . "${INSTALL_ROOT}/openvdm/.env"; fi; exec "${VENV_BIN}/python" server/workers/post_hooks.py'
 directory=${INSTALL_ROOT}/openvdm
 redirect_stderr=true
 stdout_logfile=/var/log/openvdm/post_hooks.log
@@ -2150,6 +2176,9 @@ echo "#####################################################################"
 read -p "OpenVDM user to create? ($DEFAULT_OPENVDM_USER) " OPENVDM_USER
 OPENVDM_USER=${OPENVDM_USER:-$DEFAULT_OPENVDM_USER}
 create_user $OPENVDM_USER
+OPENVDM_USER_HOME=$(getent passwd "$OPENVDM_USER" | cut -d: -f6)
+OPENVDM_ENV_FILE="${OPENVDM_USER_HOME}/shipboard-configurations/Systems/OpenVDM/.env"
+echo "Using vessel-specific OpenVDM environment file: $OPENVDM_ENV_FILE"
 echo
 
 echo "#####################################################################"
@@ -2408,6 +2437,11 @@ echo
 echo "#####################################################################"
 echo "Installing/Configuring OpenVDM"
 install_openvdm
+echo
+
+echo "#####################################################################"
+echo "Configuring OpenVDM environment file"
+configure_openvdm_env_file
 echo
 
 echo "#####################################################################"

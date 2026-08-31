@@ -17,6 +17,7 @@ The install script (`utils/install-openvdm.sh`) ships with SOI-specific defaults
 | Repository URL | `https://github.com/schmidtocean/openvdm` | `https://github.com/oceandatatools/openvdm` |
 | Branch | `openvdm-soi` | `master` |
 | OpenVDM user | `mt` | `survey` |
+| Vessel environment file | `~/shipboard-configurations/Systems/OpenVDM/.env` | *(not configured)* |
 | CruiseData path | `/mnt/CruiseData` | `/data/CruiseData` |
 | ParticipantData path | `/mnt/CruiseSandbox/ParticipantData` | `/data/PublicData` |
 | VisitorInformation path | `/mnt/soi_data1/VisitorInformation` | `/data/VisitorInformation` |
@@ -142,11 +143,16 @@ No active commands.  Add entries here to run commands when a new dive is created
 
 ##### `preFinalizeCurrentCruise`
 
-Runs before cruise finalization begins.  One command is active:
+Runs before cruise finalization begins. Two commands are active:
 
 1. **Export Sealog cruise data** — SSHes to `mt@10.23.9.24` and runs
    `/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_data_export.py`
    to export Sealog event records before the cruise data package is locked.
+
+2. **Export Metadata Manager calibration report** — Runs
+   `/opt/openvdm/bin/metadataman_pull_calibration_report.py` for the cruise being finalized and
+   unpacks the report into `<CruiseData>/<cruiseID>/Docs/`. The hook reads
+   `METADATA_MANAGER_REFRESH_TOKEN` from `/opt/openvdm/.env` through the Supervisor worker.
 
 ##### `postFinalizeCurrentCruise`
 
@@ -289,6 +295,16 @@ After the installer completes, verify or complete the following SOI-specific ste
 
 6. **Supervisor web interface** — Accessible at `http://rvfk-openvdm:9001` with the credentials
    entered during install. Use this to monitor and restart OpenVDM worker processes.
+
+7. **Metadata Manager automation** — The installer should already have linked and secured the
+   private environment file. Verify the automated result:
+   ```bash
+   readlink -f /opt/openvdm/.env
+   stat -c '%a %n' /home/mt/shipboard-configurations/Systems/OpenVDM/.env
+   ```
+   Expected results are the private shipboard-configurations path and mode `600`. Only the
+   `post_hooks` worker sources this file; interactive shells and unrelated services do not need
+   the token.
 
 ---
 
