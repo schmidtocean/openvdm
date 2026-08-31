@@ -127,7 +127,7 @@ Runs after the data dashboard is updated for a collection system.  Two entries a
 
 ##### `postSetupNewCruise`
 
-Runs after a new cruise is created in OpenVDM.  Two commands fire in sequence:
+Runs after a new cruise is created in OpenVDM. Three commands fire in sequence:
 
 1. **Build OpenRVDAS logger config** — SSHes to `mt@10.23.9.21` and runs
    `/home/mt/shipboard-configurations/Systems/OpenRVDAS/bin/build_openrvdas_logger_config.sh`
@@ -136,6 +136,10 @@ Runs after a new cruise is created in OpenVDM.  Two commands fire in sequence:
 2. **Create Sealog cruise record** — SSHes to `mt@10.23.9.24` and runs
    `/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_create_cruise_from_openvdm.py`
    to create a matching cruise record in the ship-side Sealog instance.
+
+3. **Export Metadata Manager calibration report** — Runs
+   `/opt/openvdm/bin/metadataman_pull_calibration_report.py` for the new cruise and unpacks the
+   report into `<CruiseData>/<cruiseID>/Docs/`.
 
 ##### `postSetupNewLowering`
 
@@ -151,7 +155,7 @@ Runs before cruise finalization begins. Two commands are active:
 
 2. **Export Metadata Manager calibration report** — Runs
    `/opt/openvdm/bin/metadataman_pull_calibration_report.py` for the cruise being finalized and
-   unpacks the report into `<CruiseData>/<cruiseID>/Docs/`. The hook reads
+   refreshes the report in `<CruiseData>/<cruiseID>/Docs/`. The hook reads
    `METADATA_MANAGER_REFRESH_TOKEN` from `/opt/openvdm/.env` through the Supervisor worker.
 
 ##### `postFinalizeCurrentCruise`
