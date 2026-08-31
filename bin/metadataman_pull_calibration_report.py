@@ -184,11 +184,21 @@ def safe_path_segment(value: str) -> str:
 
 
 def unpack_zip(zip_path: Path, destination: Path) -> None:
+    owner = None
+    if os.geteuid() == 0:
+        owner_reference = destination.parent
+        while not owner_reference.exists() and owner_reference != owner_reference.parent:
+            owner_reference = owner_reference.parent
+        if owner_reference.exists():
+            owner_stat = owner_reference.stat()
+            owner = (owner_stat.st_uid, owner_stat.st_gid)
+
     destination.mkdir(parents=True, exist_ok=True)
     destination_resolved = destination.resolve()
 
     with zipfile.ZipFile(zip_path) as archive:
-        for member in archive.infolist():
+        members = archive.infolist()
+        for member in members:
             target = (destination / member.filename).resolve()
             if (
                 target != destination_resolved
@@ -199,6 +209,26 @@ def unpack_zip(zip_path: Path, destination: Path) -> None:
                 )
 
         archive.extractall(destination)
+
+    if owner:
+        extracted_paths = {destination}
+        for member in members:
+            target = destination / member.filename
+            while target != destination.parent:
+                extracted_paths.add(target)
+                if target == destination:
+                    break
+                target = target.parent
+
+        for target in extracted_paths:
+            if target.exists() and not target.is_symlink():
+                os.chown(target, *owner)
+        logger.info(
+            "Set report ownership to uid=%s gid=%s from %s",
+            owner[0],
+            owner[1],
+            destination.parent,
+        )
 
 
 def run(args: argparse.Namespace) -> dict[str, str | None]:
