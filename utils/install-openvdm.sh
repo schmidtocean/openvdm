@@ -467,7 +467,7 @@ function _install_packages_debian {
     fi
 
     NEEDRESTART_MODE=a apt-get install -q -y \
-        openssh-server apache2 \
+        openssh-client openssh-server apache2 \
         cifs-utils gdal-bin gearman-job-server git \
         libapache2-mod-php${PHP_VER} libapache2-mod-wsgi-py3 libgearman-dev \
         $MYSQL_PKGS \
@@ -695,7 +695,7 @@ function _install_packages_rhel {
             cifs-utils curl gcc gcc-c++ gdal git httpd httpd-devel \
             gdal-devel geos-devel libjpeg-devel make redhat-rpm-config \
             mariadb-server nodejs npm \
-            openssh-server policycoreutils-python-utils proj proj-devel \
+            openssh-clients openssh-server policycoreutils-python-utils proj proj-devel \
             rsync samba samba-client samba-common samba-common-tools \
             setroubleshoot sshpass supervisor unzip zlib-devel
         # gearmand was already built from source in the PHP section above
@@ -704,7 +704,7 @@ function _install_packages_rhel {
             cifs-utils curl gcc gcc-c++ gdal gearmand git httpd httpd-devel \
             gdal-devel libgearman-devel geos-devel libjpeg-devel make redhat-rpm-config \
             mysql-server nodejs npm \
-            openssh-server policycoreutils-python-utils proj proj-devel \
+            openssh-clients openssh-server policycoreutils-python-utils proj proj-devel \
             python3-pyproj \
             rsync samba samba-client samba-common samba-common-tools \
             setroubleshoot sshpass supervisor unzip zlib-devel
@@ -1682,6 +1682,58 @@ function setup_ssh {
 
 ###########################################################################
 ###########################################################################
+# Configure passwordless SSH for remote commands in the deployed hook config.
+function setup_hook_ssh {
+    HOOK_CONFIG="${INSTALL_ROOT}/openvdm/server/etc/openvdm.yaml"
+
+    if [ ! -f "$HOOK_CONFIG" ]; then
+        echo "ERROR: OpenVDM hook configuration not found: $HOOK_CONFIG"
+        return 1
+    fi
+
+    while IFS= read -r SSH_TARGET; do
+        [ -z "$SSH_TARGET" ] && continue
+
+        echo "Checking hook SSH access to $SSH_TARGET"
+        if ssh -o BatchMode=yes -o ConnectTimeout=10 \
+            -o StrictHostKeyChecking=accept-new "$SSH_TARGET" true; then
+            echo "Passwordless SSH is already configured for $SSH_TARGET"
+            continue
+        fi
+
+        if ! command -v ssh-copy-id > /dev/null 2>&1; then
+            echo "ERROR: ssh-copy-id is required to configure $SSH_TARGET"
+            return 1
+        fi
+
+        echo "Enter the password for $SSH_TARGET to install OpenVDM's root SSH key."
+        if ! ssh-copy-id -i /root/.ssh/id_rsa.pub \
+            -o StrictHostKeyChecking=accept-new "$SSH_TARGET"; then
+            echo "ERROR: Could not install the SSH key on $SSH_TARGET"
+            return 1
+        fi
+
+        if ! ssh -o BatchMode=yes -o ConnectTimeout=10 "$SSH_TARGET" true; then
+            echo "ERROR: Passwordless SSH verification failed for $SSH_TARGET"
+            return 1
+        fi
+    done < <(
+        awk '
+            /^[[:space:]]*-[[:space:]]*ssh[[:space:]]*$/ { next_is_target = 1; next }
+            next_is_target {
+                if (match($0, /^[[:space:]]*-[[:space:]]*[^[:space:]#]+@[^[:space:]#]+/)) {
+                    target = substr($0, RSTART, RLENGTH)
+                    sub(/^[[:space:]]*-[[:space:]]*/, "", target)
+                    print target
+                }
+                next_is_target = 0
+            }
+        ' "$HOOK_CONFIG" | sort -u
+    )
+}
+
+###########################################################################
+###########################################################################
 # Install OpenVDM
 function install_openvdm {
     # Expect the following shell variables to be appropriately set:
@@ -2437,6 +2489,14 @@ echo
 echo "#####################################################################"
 echo "Installing/Configuring OpenVDM"
 install_openvdm
+echo
+
+echo "#####################################################################"
+echo "Configuring SSH access for OpenVDM hooks"
+if ! setup_hook_ssh; then
+    exit_gracefully
+    exit 1
+fi
 echo
 
 echo "#####################################################################"

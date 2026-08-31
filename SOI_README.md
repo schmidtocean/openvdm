@@ -130,11 +130,11 @@ Runs after the data dashboard is updated for a collection system.  Two entries a
 Runs after a new cruise is created in OpenVDM. Three commands fire in sequence:
 
 1. **Build OpenRVDAS logger config** — SSHes to `mt@10.23.9.21` and runs
-   `/home/mt/shipboard-configurations/Systems/OpenRVDAS/bin/build_openrvdas_logger_config.sh`
+   `/home/mt/shipboard-configurations/Systems/OpenRVDAS/build_logger_config.sh`
    to generate a fresh OpenRVDAS configuration for the new cruise.
 
-2. **Create Sealog cruise record** — SSHes to `mt@10.23.9.24` and runs
-   `/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_create_cruise_from_openvdm.py`
+2. **Create Sealog cruise record** — SSHes to `mt@10.23.9.25` and runs
+   `/opt/sealog-server-fkt/venv/bin/python /opt/sealog-server-fkt/misc/sealog_create_cruise_from_openvdm.py`
    to create a matching cruise record in the ship-side Sealog instance.
 
 3. **Export Metadata Manager calibration report** — Runs
@@ -149,8 +149,8 @@ No active commands.  Add entries here to run commands when a new dive is created
 
 Runs before cruise finalization begins. Two commands are active:
 
-1. **Export Sealog cruise data** — SSHes to `mt@10.23.9.24` and runs
-   `/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_data_export.py`
+1. **Export Sealog cruise data** — SSHes to `mt@10.23.9.25` and runs
+   `/opt/sealog-server-fkt/venv/bin/python /opt/sealog-server-fkt/misc/sealog_data_export.py`
    to export Sealog event records before the cruise data package is locked.
 
 2. **Export Metadata Manager calibration report** — Runs
@@ -170,8 +170,8 @@ are included in the cruise data transfers.  One command is active:
 
 Runs before lowering finalization begins.  Two commands fire in sequence:
 
-1. **Export Sealog dive data** — SSHes to `mt@10.23.9.24` and runs
-   `/opt/sealog-server-Sub/venv/bin/python /opt/sealog-server-Sub/misc/sealog_data_export.py`
+1. **Export Sealog dive data** — SSHes to `mt@10.23.9.25` and runs
+   `/opt/sealog-server-sub/venv/bin/python /opt/sealog-server-sub/misc/sealog_data_export.py`
    to export sub-side Sealog event records before the dive data is locked.
 
 2. **Build lowering tracklines** — runs `build_lowering_tracks.py ROV_Tracklines` to generate
@@ -183,19 +183,18 @@ No active commands (the `sealog_post_dive_export.py` call is commented out).
 
 #### SSH prerequisites
 
-The `postSetupNewCruise`, `preFinalizeCurrentCruise`, and `preFinalizeCurrentLowering` hooks issue
-SSH commands to remote hosts.  Passwordless SSH from the OpenVDM server (`rvfk-openvdm`) to each
-target must be configured in advance:
+The installer reads the SSH targets from the deployed `server/etc/openvdm.yaml`, prompts for each
+remote password when needed, installs OpenVDM root's public key, and verifies passwordless access.
 
 | Target | User | Purpose |
 |---|---|---|
 | `10.23.9.21` | `mt` | OpenRVDAS server — logger config generation |
-| `10.23.9.24` | `mt` | Sealog ship server (FKt) — cruise record creation |
-| `10.23.9.24` | `mt` | Sealog ship server (FKt) — cruise data export |
-| `10.23.9.24` | `mt` | Sealog sub server (Sub) — dive data export |
+| `10.23.9.25` | `mt` | Sealog ship server (FKt) — cruise record creation |
+| `10.23.9.25` | `mt` | Sealog ship server (FKt) — cruise data export |
+| `10.23.9.25` | `mt` | Sealog sub server (Sub) — dive data export |
 
-Add the OpenVDM server's root public key (`/root/.ssh/id_rsa.pub`) to
-`~/.ssh/authorized_keys` on each target host under the appropriate user.
+If a remote VM has been replaced and its host key changed, verify the new fingerprint and remove
+the obsolete entry from root's `/root/.ssh/known_hosts` before rerunning the installer.
 
 ### GPS sources for cruise track building
 
