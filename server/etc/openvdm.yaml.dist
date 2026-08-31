@@ -14,7 +14,7 @@
 # ----------------------------------------------------------------------------------- #
 
 # The siteRoot for the OpenVDM web-application/API
-siteRoot: "http://rvfk-openvdm/"
+siteRoot: "http://127.0.0.1/"
 
 # Shared secret sent by Gearman workers in the X-Worker-Token request header.
 # API endpoints that return credentials will only include password fields when
@@ -118,12 +118,12 @@ postHookCommands:
           command:
           - ssh
           - mt@10.23.9.21
-          - "/home/mt/shipboard-configurations/Systems/OpenRVDAS/bin/build_openrvdas_logger_config.sh"
+          - "/home/mt/shipboard-configurations/Systems/OpenRVDAS/build_logger_config.sh"
         - name: "Add Cruise record to Sealog"
           command:
           - ssh
-          - mt@10.23.9.24 
-          - "/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_create_cruise_from_openvdm.py"
+          - mt@10.23.9.25
+          - "/opt/sealog-server-fkt/venv/bin/python /opt/sealog-server-fkt/misc/sealog_create_cruise_from_openvdm.py"
         - name: "Export Metadata Manager calibration report"
           command:
           - /opt/openvdm/venv/bin/python
@@ -143,14 +143,12 @@ postHookCommands:
         - name: "Export Sealog data for current cruise"
           command:
           - ssh
-          - mt@10.23.9.24
-          - "/opt/sealog-server-FKt/venv/bin/python /opt/sealog-server-FKt/misc/sealog_data_export.py"
+          - mt@10.23.9.25
+          - "/opt/sealog-server-fkt/venv/bin/python /opt/sealog-server-fkt/misc/sealog_data_export.py"
         - name: "Export Metadata Manager calibration report"
           command:
           - /opt/openvdm/venv/bin/python
           - /opt/openvdm/bin/metadataman_pull_calibration_report.py
-          - --cruise-id
-          - "{cruiseID}"
     postFinalizeCurrentCruise:
         commandList:
         - name: "Build file list"
@@ -166,8 +164,8 @@ postHookCommands:
         - name: "Export Sealog data for current lowering"
           command:
           - ssh
-          - mt@10.23.9.24
-          - "/opt/sealog-server-Sub/venv/bin/python /opt/sealog-server-Sub/misc/sealog_data_export.py"
+          - mt@10.23.9.25
+          - "/opt/sealog-server-sub/venv/bin/python /opt/sealog-server-sub/misc/sealog_data_export.py"
         - name: "Build cruise tracks"
           command:
           - /opt/openvdm/venv/bin/python
