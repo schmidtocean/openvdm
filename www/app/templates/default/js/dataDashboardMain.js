@@ -151,8 +151,9 @@ $(function () {
                     });
 
                     //Add basemap layer
-                    L.tileLayer('http://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png', {
-                        // attribution: '&copy <a href="http://www.openstreetmap.org/copyright", target="_blank", rel="noopener">OpenStreetMap</a>, contributors &copy; <a href="https://carto.com/about-carto/">rastertiles/voyager</a>',
+                    L.tileLayer.wms('https://www.gmrt.org/services/mapserver/wms_merc?', {
+                        layers: 'topo',
+                        format: 'image/png',
                         maxZoom: 20
                     }).addTo(mapdb);
 
@@ -200,7 +201,9 @@ $(function () {
                     });
 
                     //Add basemap layer
-                    L.tileLayer('http://basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png', {
+                    L.tileLayer.wms('https://www.gmrt.org/services/mapserver/wms_merc?', {
+                        layers: 'topo',
+                        format: 'image/png',
                         maxZoom: 20
                     }).addTo(mapdb);
 
