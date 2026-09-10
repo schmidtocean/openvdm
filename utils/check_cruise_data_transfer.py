@@ -3,11 +3,11 @@
 
 The checker loads a Cruise Data Transfer from OpenVDM, reuses the transfer
 worker's exclude-list builder, compares source and destination sizes, and then
-runs an exact ``rclone check --size-only``. If that check finds differences,
-the operator may explicitly confirm a production-equivalent ``rclone sync``;
-the script then verifies the result. This is intended for finalized cruises
-whose Cruise Data Transfer uses sync semantics (equivalent to rsync
-``--delete``), not copy semantics.
+previews an exact ``rclone sync --dry-run --delete-excluded``. If that preview
+finds differences, the operator may explicitly confirm the same sync without
+``--dry-run``; the script then verifies the result. This is intended for
+finalized cruises whose Cruise Data Transfer uses sync semantics (equivalent
+to rsync ``--delete``), not copy semantics.
 
 Usage::
 
@@ -120,6 +120,21 @@ def run_check(source, destination, exclude_file, log_file):
     return result.returncode
 
 
+def run_sync_preview(command, log_file):
+    """Dry-run *command* and return its status and number of changes."""
+
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    log_file.write_text("", encoding="utf-8")
+    result = subprocess.run(
+        [*command, "--dry-run", "--combined", str(log_file)], check=False
+    )
+    changes = sum(
+        line[:1] in "+-*!"
+        for line in log_file.read_text(encoding="utf-8").splitlines()
+    )
+    return result.returncode, changes
+
+
 def resync_settings(ovdm, args):
     """Return current transfer flags, or an explanation of why sync is unsafe."""
 
@@ -163,7 +178,40 @@ def offer_resync(ovdm, args, source, destination, exclude_file, log_file):
         print(f"Resync unavailable: {blocker}", file=sys.stderr)
         return 1
 
-    print("\nWARNING: sync can delete destination-only objects.", file=sys.stderr)
+    preview_flags = flags
+    command = [
+        "rclone",
+        "sync",
+        source,
+        destination,
+        *flags,
+        "--delete-excluded",
+        "--exclude-from",
+        str(exclude_file),
+    ]
+    sync_log_file = sync_log_path(log_file)
+    preview_log_file = sync_log_file.with_suffix(".dry-run.log")
+    print(f"\nRunning dry-run sync comparison; log: {preview_log_file}")
+    preview_status, change_count = run_sync_preview(command, preview_log_file)
+    if preview_status != 0:
+        print(
+            f"FAIL: rclone dry-run exited with status {preview_status}; "
+            "no data was changed",
+            file=sys.stderr,
+        )
+        return preview_status
+
+    if change_count == 0:
+        print("PASS: dry-run found no changes to make")
+        return 0
+
+    print(f"Dry-run found {change_count:,} planned change(s); see {preview_log_file}")
+
+    print(
+        "\nWARNING: sync will delete destination-only objects, including objects "
+        "matching the current exclusions.",
+        file=sys.stderr,
+    )
     try:
         confirmation = input(
             f"Type {args.cruise_id} to synchronize the destination, "
@@ -183,17 +231,18 @@ def offer_resync(ovdm, args, source, destination, exclude_file, log_file):
         print(f"Resync refused after final safety check: {blocker}", file=sys.stderr)
         return 1
 
-    sync_log_file = sync_log_path(log_file)
+    if flags != preview_flags:
+        print(
+            "Resync refused: transfer options changed after the dry-run; "
+            "rerun the checker",
+            file=sys.stderr,
+        )
+        return 1
+
     sync_log_file.parent.mkdir(parents=True, exist_ok=True)
     sync_log_file.write_text("", encoding="utf-8")
     command = [
-        "rclone",
-        "sync",
-        source,
-        destination,
-        *flags,
-        "--exclude-from",
-        str(exclude_file),
+        *command,
         "--log-file",
         str(sync_log_file),
         "--log-level",
@@ -210,6 +259,8 @@ def offer_resync(ovdm, args, source, destination, exclude_file, log_file):
         return result.returncode
 
     print("Sync completed successfully; verifying again...")
+    log_file.parent.mkdir(parents=True, exist_ok=True)
+    log_file.write_text("", encoding="utf-8")
     post_sync_status = run_check(source, destination, exclude_file, log_file)
     if post_sync_status == 0:
         print("PASS: post-sync verification found no differences")
@@ -340,15 +391,6 @@ def main():
         f'{human_size(destination_size["bytes"])}'
     )
 
-    print("\nRunning read-only verification...")
-    log_file.parent.mkdir(parents=True, exist_ok=True)
-    log_file.write_text("", encoding="utf-8")
-    check_status = run_check(source, destination, exclude_file, log_file)
-    if check_status == 0:
-        print("PASS: all included source files exist at the destination with matching sizes")
-        return 0
-
-    print(f"FAIL: rclone check exited with status {check_status}", file=sys.stderr)
     return offer_resync(
         ovdm,
         args,
